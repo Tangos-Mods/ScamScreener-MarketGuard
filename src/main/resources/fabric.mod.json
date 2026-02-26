@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "Client-side protection against accidental clicks in SkyBlock auction screens.",
+  "authors": [
+    "Pankraz01"
+  ],
+  "contact": {},
+  "license": "CC0-1.0",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "eu.tango.scamscreener.marketguard.MarketGuard"
+    ]
+  },
+  "mixins": [
+    "mixins.marketguard.json"
+  ],
+  "accessWidener": "marketguard.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.17",
+    "minecraft": "${minecraft}"
+  },
+  "suggests": {
+  }
+}
