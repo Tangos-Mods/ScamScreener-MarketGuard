@@ -40,6 +40,10 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
     compileOnly("org.projectlombok:lombok:${property("deps.lombok")}")
     annotationProcessor("org.projectlombok:lombok:${property("deps.lombok")}")
+    testImplementation(platform("org.junit:junit-bom:5.12.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.mockito:mockito-core:5.17.0")
 
     fapi("fabric-lifecycle-events-v1", "fabric-resource-loader-v0", "fabric-content-registries-v0")
 }
@@ -66,6 +70,17 @@ java {
 }
 
 tasks {
+    withType<org.gradle.api.tasks.testing.Test>().configureEach {
+        useJUnitPlatform()
+        testLogging {
+            events(
+                org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED,
+                org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED,
+                org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
+            )
+        }
+    }
+
     processResources {
         inputs.property("id", project.property("mod.id"))
         inputs.property("name", project.property("mod.name"))

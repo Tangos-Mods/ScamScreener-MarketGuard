@@ -1,10 +1,15 @@
 package eu.tango.scamscreener.marketguard.util;
 
+import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SkyBlockItemUtil {
 
@@ -27,6 +32,15 @@ public class SkyBlockItemUtil {
         if (isSkyBlockId(id)) return id;
 
         return null;
+    }
+
+    public static double getPriceFromNBT(ItemStack item) throws Exception {
+        if (item == null || item.isEmpty()) throw new Exception("Item cannot be empty");
+
+        String raw = item.getName().getString();
+        Matcher m = Pattern.compile(AuctionSlots.ITEM_PRICE.getItemName()).matcher(raw);
+        if (!m.find()) throw new Exception("Cannot read item price: " + raw);
+        return Double.parseDouble(m.group().replaceAll("[^0-9,]", "").replace(",", ""));
     }
 
     @Nullable

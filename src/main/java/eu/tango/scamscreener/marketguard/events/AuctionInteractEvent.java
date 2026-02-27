@@ -1,5 +1,8 @@
 package eu.tango.scamscreener.marketguard.events;
 
+import eu.tango.scamscreener.marketguard.auction.AuctionInventory;
+import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
+import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.fabricmc.fabric.api.event.Event;
@@ -60,6 +63,27 @@ public final class AuctionInteractEvent {
         public String getInventoryName() {
             return screen.getTitle().getString();
         }
+
+        public ItemStack getAuctionItemStack() {
+            int itemSlot = AuctionSlots.ITEM.getSlot();
+            return screenHandler.getSlot(itemSlot).getStack();
+        }
+
+        public String getAuctionItemId() {
+            return SkyBlockItemUtil.getSkyblockId(getAuctionItemStack());
+        }
+
+        public double getPlayerPrice() throws Exception {
+            int priceSlot = AuctionSlots.ITEM_PRICE.getSlot();
+            return SkyBlockItemUtil.getPriceFromNBT(screenHandler.getSlot(priceSlot).getStack());
+        }
+
+        public boolean isCreateBinClick() {
+            if (getInventoryName() == null) return false;
+            if (!getInventoryName().contains(AuctionInventory.CREATE_BIN.getTitle())) return false;
+            return getSlotId() == AuctionSlots.CREATE_BIN.getSlot();
+        }
+
     }
 
 }

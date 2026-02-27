@@ -5,31 +5,31 @@ import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
-import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
-import static eu.tango.scamscreener.marketguard.util.MessageBuilder.PREFIX;
+import static eu.tango.scamscreener.marketguard.util.MessageBuilder.*;
 
 public final class AuctionUnderbidding {
-    private static final double percentage = 0.33;
+    private static final double percentage = 0.80;
     private AuctionUnderbidding() {}
 
     public static void onInteract(AuctionInteractEvent.Context context) {
-        if (!isCreateBinClick(context)) return;
-        context.cancel();
+        if (!context.isCreateBinClick()) return;
+        assert context.getMc().player != null;
 
-        ItemStack itemStack = getAuctionItemStack(context);
+        // DEBUG: always cancel
+        //context.cancel();
+
+        ItemStack itemStack = context.getAuctionItemStack();
         if (itemStack.isEmpty()) {
-            sendStatus(context, "Konnte Auktion-Item nicht lesen.", Formatting.RED);
+            error(Text.literal("Could not find Auction Item"), context.getMc().player);
             return;
         }
-
-
         String itemId = SkyBlockItemUtil.getSkyblockId(itemStack);
+
         if (itemId == null) {
-            sendStatus(context, "Konnte SkyBlock Item-ID fuer " + itemStack.getItem() + " nicht lesen.", Formatting.RED);
+            error(Text.literal("Could not read Skyblock ID for ").append(itemStack.getName()), context.getMc().player);
             return;
         }
 
@@ -37,28 +37,30 @@ public final class AuctionUnderbidding {
                 .supplyAsync(() -> fetchLowestBin(itemId))
                 .thenAccept(lowestBin -> context.getMc().execute(() -> {
                     if (lowestBin == null) {
-                        sendStatus(context, "Lowest BIN fuer " + itemId + " konnte nicht geladen werden.", Formatting.RED);
+                        error(Text.literal("Cannot load Lowest BIN for ").append(itemId), context.getMc().player);
                         return;
                     }
+                    try {
+                        double binPlayer = context.getPlayerPrice();
+                        if (lowestBin <= 0.0) {
+                            error(Text.literal("Lowest BIN is invalid for ").append(itemId), context.getMc().player);
+                            return;
+                        }
 
-                    // TODO: cancel Logik einbauen, dass wenn item unter der percentage reingesetzt wurde, der Click gecancelled wird
+                        double minimumAllowedPrice = lowestBin * percentage;
+                        double underbidPercent = ((lowestBin - binPlayer) / lowestBin) * 100.0;
 
+                        if (binPlayer < minimumAllowedPrice) {
+                            context.cancel();
+                            underbidding(context.getAuctionItemId(), underbidPercent, context.getMc().player);
+                        }
+                    } catch (Exception e) {
+                        error(Text.literal("Failed to catch item price: " + e.getMessage()), context.getMc().player);
+                        //throw new RuntimeException(e);
+                    }
                 }));
     }
 
-    private static boolean isCreateBinClick(AuctionInteractEvent.Context context) {
-        String inventoryName = context.getInventoryName();
-        if (inventoryName == null) return false;
-        if (!inventoryName.contains(AuctionInventory.CREATE_BIN.getTitle())) return false;
-
-        return context.getSlotId() == AuctionSlots.CREATE_BIN.getSlot();
-    }
-
-    private static ItemStack getAuctionItemStack(AuctionInteractEvent.Context context) {
-        int slotIndex = AuctionSlots.ITEM.getSlot();
-        if (slotIndex < 0 || slotIndex >= context.getScreenHandler().slots.size()) return ItemStack.EMPTY;
-        return context.getScreenHandler().getSlot(slotIndex).getStack();
-    }
 
     private static Double fetchLowestBin(String itemId) {
         try {
@@ -69,10 +71,5 @@ public final class AuctionUnderbidding {
         }
     }
 
-    private static void sendStatus(AuctionInteractEvent.Context context, String message, Formatting color) {
-        if (context.getMc().player == null) return;
-        Text text = PREFIX.copy().append(Text.literal(message).formatted(color));
-        context.getMc().player.sendMessage(text, false);
-    }
 
 }
