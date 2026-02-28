@@ -14,6 +14,9 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
+
 public final class AuctionInteractEvent {
 
     private AuctionInteractEvent() {}
@@ -51,9 +54,19 @@ public final class AuctionInteractEvent {
         private final SlotActionType actionType;
 
         private boolean cancelled = false;
+        private final IntConsumer bypassScheduler;
+        private final IntSupplier bypassRemainingSupplier;
 
         public void cancel() {
             this.cancelled = true;
+        }
+
+        public void bypass(int clicks) {
+            bypassScheduler.accept(clicks);
+        }
+
+        public int getRemainingBypassClicks() {
+            return Math.max(0, bypassRemainingSupplier.getAsInt());
         }
 
         public ItemStack getStack() {
@@ -82,6 +95,12 @@ public final class AuctionInteractEvent {
             if (getInventoryName() == null) return false;
             if (!getInventoryName().contains(AuctionInventory.CREATE_BIN.getTitle())) return false;
             return getSlotId() == AuctionSlots.CREATE_BIN.getSlot();
+        }
+
+        public boolean isBinView() {
+            if (getInventoryName() == null) return false;
+            if (!getInventoryName().contains(AuctionInventory.BIN_VIEW.getTitle())) return false;
+            return getSlotId() == AuctionSlots.BUY_BIN_ITEM.getSlot();
         }
 
     }

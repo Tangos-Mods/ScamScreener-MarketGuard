@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard;
 
+import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import net.fabricmc.api.ClientModInitializer;
@@ -26,5 +27,6 @@ public class MarketGuard implements ClientModInitializer {
 
     private void registerListeners() {
         AuctionInteractEvent.EVENT.register(AuctionUnderbidding::onInteract);
+        AuctionInteractEvent.EVENT.register(AuctionOverbidding::onInteract);
     }
 }

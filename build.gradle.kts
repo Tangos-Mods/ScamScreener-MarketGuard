@@ -1,9 +1,52 @@
 plugins {
     id("net.fabricmc.fabric-loom-remap")
+    id("me.modmuss50.mod-publish-plugin")
 }
 
 version = "${property("mod.version")}+${sc.current.version}"
 base.archivesName = property("mod.id") as String
+
+fun File.readDotEnv(): Map<String, String> {
+    if (!isFile) return emptyMap()
+
+    return readLines()
+        .asSequence()
+        .map(String::trim)
+        .filter { it.isNotEmpty() && !it.startsWith("#") }
+        .mapNotNull { line ->
+            val separator = line.indexOf('=')
+            if (separator <= 0) return@mapNotNull null
+
+            val key = line.substring(0, separator).trim()
+            val value = line.substring(separator + 1).trim()
+                .removeSurrounding("\"")
+                .removeSurrounding("'")
+
+            key to value
+        }
+        .associate { it }
+}
+
+fun configuredProperty(name: String): String? =
+    providers.gradleProperty(name).orNull
+        ?.trim()
+        ?.takeUnless { it.isEmpty() || it.startsWith("#") }
+
+val dotenv = rootProject.file(".env").readDotEnv()
+val modVersion = property("mod.version") as String
+val modName = property("mod.name") as String
+val modrinthProjectId = configuredProperty("publish.modrinth")
+val curseforgeProjectId = configuredProperty("publish.curseforge")
+val modrinthToken = System.getenv("MODRINTH_TOKEN")?.trim()?.takeIf { it.isNotEmpty() }
+    ?: dotenv["MODRINTH_TOKEN"]?.trim()?.takeIf { it.isNotEmpty() }
+val curseforgeToken = System.getenv("CURSEFORGE_TOKEN")?.trim()?.takeIf { it.isNotEmpty() }
+    ?: dotenv["CURSEFORGE_TOKEN"]?.trim()?.takeIf { it.isNotEmpty() }
+val releaseNotes = rootProject.file("CHANGELOG.md")
+    .takeIf(File::isFile)
+    ?.readText()
+    ?.trim()
+    ?.takeIf(String::isNotEmpty)
+    ?: "$modName $modVersion"
 
 val requiredJava = when {
     sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
@@ -67,6 +110,29 @@ java {
     withSourcesJar()
     targetCompatibility = requiredJava
     sourceCompatibility = requiredJava
+}
+
+publishMods {
+    file.set(tasks.remapJar.flatMap { it.archiveFile })
+    changelog.set(releaseNotes)
+    displayName.set("$modName $modVersion (${sc.current.version})")
+    type.set(BETA)
+    modLoaders.add("fabric")
+
+    modrinth {
+        modrinthProjectId?.let(projectId::set)
+        modrinthToken?.let(accessToken::set)
+        minecraftVersions.add(sc.current.version)
+        requires("fabric-api")
+    }
+
+    curseforge {
+        curseforgeProjectId?.let(projectId::set)
+        curseforgeToken?.let(accessToken::set)
+        minecraftVersions.add(sc.current.version)
+        javaVersions.add(requiredJava)
+        requires("fabric-api")
+    }
 }
 
 tasks {

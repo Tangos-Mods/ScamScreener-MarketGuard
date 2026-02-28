@@ -3,6 +3,7 @@
   "id": "${id}",
   "version": "${version}",
   "name": "${name}",
+  "icon": "assets/marketguard/icon.png",
   "description": "Client-side protection against accidental clicks in SkyBlock auction screens.",
   "authors": [
     "Pankraz01"

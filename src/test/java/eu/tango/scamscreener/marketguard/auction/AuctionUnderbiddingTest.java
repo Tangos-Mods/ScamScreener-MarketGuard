@@ -1,10 +1,9 @@
 package eu.tango.scamscreener.marketguard.auction;
 
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
+import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
-
-import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -32,9 +31,7 @@ class AuctionUnderbiddingTest {
         try (MockedStatic<LowestBIN> lowestBin = mockStatic(LowestBIN.class)) {
             lowestBin.when(() -> LowestBIN.getLowestBIN("FANCY_LEGGINGS")).thenReturn(100.0);
 
-            Method method = AuctionUnderbidding.class.getDeclaredMethod("fetchLowestBin", String.class);
-            method.setAccessible(true);
-            Double result = (Double) method.invoke(null, "FANCY_LEGGINGS");
+            Double result = SkyBlockItemUtil.fetchLowestBin("FANCY_LEGGINGS");
 
             assertEquals(100.0, result);
         }
@@ -46,9 +43,7 @@ class AuctionUnderbiddingTest {
             lowestBin.when(() -> LowestBIN.getLowestBIN("MISSING_ITEM"))
                     .thenThrow(new RuntimeException("boom"));
 
-            Method method = AuctionUnderbidding.class.getDeclaredMethod("fetchLowestBin", String.class);
-            method.setAccessible(true);
-            Double result = (Double) method.invoke(null, "MISSING_ITEM");
+            Double result = SkyBlockItemUtil.fetchLowestBin("MISSING_ITEM");
 
             assertNull(result);
         }

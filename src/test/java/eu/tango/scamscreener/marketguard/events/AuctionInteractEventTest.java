@@ -31,7 +31,9 @@ class AuctionInteractEventTest {
                 null,
                 0,
                 null,
-                null
+                null,
+                clicks -> { },
+                () -> 0
         );
 
         assertFalse(context.isCancelled());
@@ -39,4 +41,3 @@ class AuctionInteractEventTest {
         assertTrue(context.isCancelled());
     }
 }
-
