@@ -35,6 +35,8 @@ fun configuredProperty(name: String): String? =
 val dotenv = rootProject.file(".env").readDotEnv()
 val modVersion = property("mod.version") as String
 val modName = property("mod.name") as String
+val modType = configuredProperty("mod.type")
+    ?: throw GradleException("Missing mod.type. Expected one of: ALPHA, BETA, STABLE.")
 val modrinthProjectId = configuredProperty("publish.modrinth")
 val curseforgeProjectId = configuredProperty("publish.curseforge")
 val modrinthToken = System.getenv("MODRINTH_TOKEN")?.trim()?.takeIf { it.isNotEmpty() }
@@ -53,6 +55,12 @@ val requiredJava = when {
     sc.current.parsed >= "1.18" -> JavaVersion.VERSION_17
     sc.current.parsed >= "1.17" -> JavaVersion.VERSION_16
     else -> JavaVersion.VERSION_1_8
+}
+
+val releaseType = try {
+    me.modmuss50.mpp.ReleaseType.of(modType.uppercase())
+} catch (_: IllegalArgumentException) {
+    throw GradleException("Invalid mod.type '$modType'. Expected one of: ALPHA, BETA, STABLE.")
 }
 
 repositories {
@@ -116,7 +124,7 @@ publishMods {
     file.set(tasks.remapJar.flatMap { it.archiveFile })
     changelog.set(releaseNotes)
     displayName.set("$modName $modVersion (${sc.current.version})")
-    type.set(BETA)
+    type.set(releaseType)
     modLoaders.add("fabric")
 
     modrinth {

@@ -10,9 +10,6 @@ import org.slf4j.LoggerFactory;
 
 public class MarketGuard implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("marketguard");
-    public static final String VERSION = /*$ mod_version*/ "0.1.0";
-    public static final String MINECRAFT = /*$ minecraft*/ "1.21.11";
-
     public static final String MOD_ID = "marketguard";
 
     @Override

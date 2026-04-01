@@ -10,7 +10,7 @@ import java.net.http.HttpResponse;
 
 public class LowestBIN {
 
-    private static final String URL = "https://moulberry.codes/lowestbin.json";
+    private static final String URL = "https://scamscreener.creepans.net/api/v1/lowestbin";
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
     private static final Object LOCK = new Object();
 
