@@ -6,13 +6,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.lang.reflect.Method;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("live-api")
 @Timeout(value = 20, unit = TimeUnit.SECONDS)
 class LowestBINApiTest {
+    private static final Pattern SIMPLE_ITEM_KEY = Pattern.compile("^[A-Z0-9_]+$");
+    private static final Pattern PET_TIER_KEY = Pattern.compile("^[A-Z0-9_]+;[1-9][0-9]*$");
+    private static final Pattern PET_LEVEL_KEY = Pattern.compile("^[A-Z0-9_]+;[1-9][0-9]*\\+[1-9][0-9]*$");
+    private static final Pattern ATTRIBUTE_KEY = Pattern.compile("^[A-Z0-9_]+\\+ATTRIBUTE_[A-Z0-9_]+(?:;[1-9][0-9]*|\\+ATTRIBUTE_[A-Z0-9_]+.*)?$");
 
     @Test
     void endpointReturnsNonEmptySnapshot() throws Exception {
@@ -24,28 +30,32 @@ class LowestBINApiTest {
 
     @Test
     void returnsPriceForSimpleItem() throws Exception {
-        double price = LowestBIN.getLowestBIN("ABICASE");
+        String itemKey = findMatchingKey(SIMPLE_ITEM_KEY);
+        double price = LowestBIN.getLowestBIN(itemKey);
 
         assertTrue(price > 0.0, "simple item should return a positive Lowest BIN");
     }
 
     @Test
     void returnsPriceForPetKeyWithTierSuffix() throws Exception {
-        double price = LowestBIN.getLowestBIN("SHEEP;4");
+        String itemKey = findMatchingKey(PET_TIER_KEY);
+        double price = LowestBIN.getLowestBIN(itemKey);
 
         assertTrue(price > 0.0, "pet key with tier suffix should return a positive Lowest BIN");
     }
 
     @Test
     void returnsPriceForPetKeyWithLevelMetadata() throws Exception {
-        double price = LowestBIN.getLowestBIN("ARMADILLO;5+100");
+        String itemKey = findMatchingKey(PET_LEVEL_KEY);
+        double price = LowestBIN.getLowestBIN(itemKey);
 
         assertTrue(price > 0.0, "pet key with level metadata should return a positive Lowest BIN");
     }
 
     @Test
     void returnsPriceForItemKeyWithAttributeMetadata() throws Exception {
-        double price = LowestBIN.getLowestBIN("AURORA_BOOTS+ATTRIBUTE_BLAZING_RESISTANCE;1");
+        String itemKey = findMatchingKey(ATTRIBUTE_KEY);
+        double price = LowestBIN.getLowestBIN(itemKey);
 
         assertTrue(price > 0.0, "item key with attribute metadata should return a positive Lowest BIN");
     }
@@ -54,5 +64,17 @@ class LowestBINApiTest {
         Method method = LowestBIN.class.getDeclaredMethod("getSnapshot");
         method.setAccessible(true);
         return (JsonObject) method.invoke(null);
+    }
+
+    private static String findMatchingKey(Pattern pattern) throws Exception {
+        Set<String> keys = getSnapshot().keySet();
+
+        for (String key : keys) {
+            if (pattern.matcher(key).matches()) {
+                return key;
+            }
+        }
+
+        throw new AssertionError("No live API key matched pattern: " + pattern);
     }
 }
