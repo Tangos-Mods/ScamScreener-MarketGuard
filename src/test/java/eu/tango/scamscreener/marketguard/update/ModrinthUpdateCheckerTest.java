@@ -28,6 +28,44 @@ class ModrinthUpdateCheckerTest {
     }
 
     @Test
+    void ignoresSameVersionWhenOnlyMinecraftSuffixDiffers() {
+        String responseBody = """
+                [
+                  {
+                    "version_number": "1.1.0+1.21.10",
+                    "version_type": "release",
+                    "date_published": "2026-04-01T10:15:30Z",
+                    "status": "listed",
+                    "changelog": "Same release"
+                  }
+                ]
+                """;
+
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.1.0+1.21.11");
+
+        assertNull(updateInfo);
+    }
+
+    @Test
+    void ignoresSameBetaVersionWhenOnlyMinecraftSuffixDiffers() {
+        String responseBody = """
+                [
+                  {
+                    "version_number": "1.0.0-beta1+1.21.10",
+                    "version_type": "release",
+                    "date_published": "2026-04-01T10:15:30Z",
+                    "status": "listed",
+                    "changelog": "Same beta release"
+                  }
+                ]
+                """;
+
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.0.0-beta1+1.21.11");
+
+        assertNull(updateInfo);
+    }
+
+    @Test
     void picksNewestListedRelease() {
         String responseBody = """
                 [
@@ -62,5 +100,26 @@ class ModrinthUpdateCheckerTest {
         assertEquals("1.1.1", updateInfo.latestVersion());
         assertEquals("https://modrinth.com/project/ji4JdpCu", updateInfo.modrinthUrl());
         assertEquals("Fixes", updateInfo.changelog());
+    }
+
+    @Test
+    void returnsNormalizedVersionWithoutMinecraftSuffix() {
+        String responseBody = """
+                [
+                  {
+                    "version_number": "1.1.1+1.21.11",
+                    "version_type": "release",
+                    "date_published": "2026-04-02T10:15:30Z",
+                    "status": "listed",
+                    "changelog": "Fixes"
+                  }
+                ]
+                """;
+
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.1.0+1.21.11");
+
+        assertNotNull(updateInfo);
+        assertEquals("1.1.0+1.21.11", updateInfo.currentVersion());
+        assertEquals("1.1.1", updateInfo.latestVersion());
     }
 }

@@ -7,8 +7,10 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.jetbrains.annotations.Nullable;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.error;
+import static eu.tango.scamscreener.marketguard.util.MessageBuilder.lowestBinUnavailable;
 
 final class AuctionPricingResolver {
     private AuctionPricingResolver() {}
@@ -45,22 +47,21 @@ final class AuctionPricingResolver {
 
         LowestBIN.LookupResult lookupResult = SkyBlockItemUtil.lookupLowestBin(itemId);
         if (!lookupResult.hasValue()) {
-            context.cancel();
-
             if (lookupResult.loading()) {
+                context.cancel();
                 MarketGuard.debug("Pricing resolution blocked: Lowest BIN is still loading for '{}'", itemId);
                 error(Text.literal("Lowest BIN prices are still loading. Please try again.").formatted(Formatting.YELLOW), player);
                 return null;
             }
 
             if (lookupResult.refreshFailed()) {
+                context.cancel();
                 MarketGuard.debug("Pricing resolution blocked: Lowest BIN refresh failed and no cached value is available for '{}'", itemId);
                 error(Text.literal("Lowest BIN prices could not be loaded. Please try again.").formatted(Formatting.RED), player);
                 return null;
             }
 
-            MarketGuard.debug("Pricing resolution blocked: no Lowest BIN value available for '{}'", itemId);
-            error(Text.literal("Cannot load Lowest BIN for ").append(itemId).formatted(Formatting.RED), player);
+            blockMissingLowestBin(context, player, itemId);
             return null;
         }
 
@@ -87,6 +88,17 @@ final class AuctionPricingResolver {
             context.cancel();
             error(Text.literal("Failed to catch item price: " + e.getMessage()).formatted(Formatting.RED), player);
             return null;
+        }
+    }
+
+    static void blockMissingLowestBin(AuctionInteractEvent.Context context, @Nullable ClientPlayerEntity player, String itemId) {
+        context.cancel();
+        MarketGuard.debug("Pricing resolution blocked: no Lowest BIN value available for '{}'", itemId);
+        context.bypass(4);
+        int remainingClicks = context.getRemainingBypassClicks();
+        MarketGuard.debug("Pricing resolution scheduled bypass for missing Lowest BIN itemId='{}' remainingClicks={}", itemId, remainingClicks);
+        if (player != null) {
+            lowestBinUnavailable(itemId, remainingClicks, player);
         }
     }
 }

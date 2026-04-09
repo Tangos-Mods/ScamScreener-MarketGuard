@@ -190,6 +190,12 @@ public final class ModrinthUpdateChecker {
         if (normalized.startsWith("v") || normalized.startsWith("V")) {
             normalized = normalized.substring(1).trim();
         }
+
+        int separator = normalized.indexOf('+');
+        if (separator >= 0) {
+            normalized = normalized.substring(0, separator).trim();
+        }
+
         return normalized;
     }
 

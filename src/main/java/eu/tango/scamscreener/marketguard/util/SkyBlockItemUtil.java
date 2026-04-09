@@ -56,10 +56,36 @@ public class SkyBlockItemUtil {
         if (compound == null) return null;
         String id = compound.getString("id").orElse(null);
         if (id == null || id.isBlank()) return null;
-        if (!"PET".equals(id)) return id;
+        if ("PET".equals(id)) {
+            String petSkyBlockId = getPetSkyblockId(compound);
+            return (petSkyBlockId == null || petSkyBlockId.isBlank()) ? id : petSkyBlockId;
+        }
+        if ("RUNE".equals(id)) {
+            String runeSkyBlockId = getRuneSkyblockId(compound);
+            return (runeSkyBlockId == null || runeSkyBlockId.isBlank()) ? id : runeSkyBlockId;
+        }
+        return id;
+    }
 
-        String petSkyBlockId = getPetSkyblockId(compound);
-        return (petSkyBlockId == null || petSkyBlockId.isBlank()) ? id : petSkyBlockId;
+    @Nullable
+    private static String getRuneSkyblockId(NbtCompound compound) {
+        NbtCompound runesCompound = compound.getCompound("runes").orElse(null);
+        if (runesCompound == null) return null;
+
+        for (String runeType : runesCompound.getKeys()) {
+            if (runeType == null || runeType.isBlank()) continue;
+
+            int runeLevel = runesCompound.getInt(runeType).orElse(0);
+            if (runeLevel <= 0) continue;
+
+            String normalizedRuneType = runeType.toUpperCase(Locale.ROOT);
+            if (!normalizedRuneType.endsWith("_RUNE")) {
+                normalizedRuneType += "_RUNE";
+            }
+            return normalizedRuneType + ";" + runeLevel;
+        }
+
+        return null;
     }
 
     @Nullable

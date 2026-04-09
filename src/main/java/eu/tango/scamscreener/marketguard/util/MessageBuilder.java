@@ -22,6 +22,16 @@ public class MessageBuilder {
          player.sendMessage(PREFIX.copy().append(error), false);
     }
 
+    public static void lowestBinUnavailable(String itemId, int remainingClicks, ClientPlayerEntity player) {
+        player.sendMessage(PREFIX.copy()
+                .append(Text.literal("Cannot load Lowest BIN for ").formatted(Formatting.RED))
+                .append(Text.literal(itemId).formatted(Formatting.YELLOW))
+                .append(Text.literal(" (").formatted(Formatting.GRAY))
+                .append(Text.literal(String.valueOf(remainingClicks) + " clicks").formatted(Formatting.BOLD, Formatting.RED))
+                .append(Text.literal(" until bypass)").formatted(Formatting.GRAY)),
+                false);
+    }
+
     public static void underbidding(String item, double underbidPercent, int remainingClicks, ClientPlayerEntity player) {
         int color = Colors.YELLOW;
 

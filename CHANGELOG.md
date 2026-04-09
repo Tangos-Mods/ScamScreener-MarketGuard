@@ -1,7 +1,5 @@
-## 1.1.0
+## 1.1.1
 
-- Added `/marketguard` and `/mg` client commands to inspect and change underbidding and overbidding thresholds.
-- Persisted MarketGuard settings in `config/scamscreener_marketguard/config.json`.
-- Added optional debug logging for auction clicks, bypass handling, price parsing, and Lowest BIN lookups.
-- Moved Lowest BIN refreshes out of the click path to avoid client stalls and prefetched prices when auction screens open.
-- Guard now blocks clicks while Lowest BIN data is loading and falls back to stale in-memory prices with a warning if refreshes fail.
+- Added Rune Lowest BIN resolution from SkyBlock item data, so rune items now map to API keys such as `SNOW_RUNE;1` instead of the generic `RUNE`.
+- Missing Lowest BIN entries now use the normal bypass countdown instead of blocking BIN actions indefinitely.
+- Update notifications now compare only the mod version before `+`, so differing Minecraft suffixes like `1.1.0+1.21.11` no longer trigger false join messages.
