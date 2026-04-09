@@ -2,6 +2,7 @@ package eu.tango.scamscreener.marketguard.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import eu.tango.scamscreener.marketguard.util.MessageBuilder;
@@ -33,7 +34,13 @@ public final class MarketGuardCommand {
     }
 
     private static int setUnderbidding(CommandContext<FabricClientCommandSource> context, int value) {
+        int previousThreshold = AuctionUnderbidding.getThreshold();
         AuctionUnderbidding.setThreshold(value);
+        if (!MarketGuardConfig.save()) {
+            AuctionUnderbidding.setThreshold(previousThreshold);
+            context.getSource().sendFeedback(message(Text.literal("Failed to save marketguard/config.json.").formatted(Formatting.RED)));
+            return 0;
+        }
 
         if (value == 0 || value == 100) {
             context.getSource().sendFeedback(message(Text.literal("Underbidding protection disabled.").formatted(Formatting.YELLOW)));
@@ -47,7 +54,13 @@ public final class MarketGuardCommand {
     }
 
     private static int setOverbidding(CommandContext<FabricClientCommandSource> context, int value) {
+        int previousThreshold = AuctionOverbidding.getThreshold();
         AuctionOverbidding.setThreshold(value);
+        if (!MarketGuardConfig.save()) {
+            AuctionOverbidding.setThreshold(previousThreshold);
+            context.getSource().sendFeedback(message(Text.literal("Failed to save marketguard/config.json.").formatted(Formatting.RED)));
+            return 0;
+        }
 
         if (value == 100) {
             context.getSource().sendFeedback(message(Text.literal("Overbidding protection disabled.").formatted(Formatting.YELLOW)));

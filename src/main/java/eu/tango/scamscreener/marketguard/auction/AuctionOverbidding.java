@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.auction;
 
+import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.overbidding;
@@ -38,11 +39,23 @@ public final class AuctionOverbidding {
         if (pricing == null) return;
 
         double maximumAllowedPrice = pricing.lowestBin() * getMaximumAllowedPercentage();
+        MarketGuard.debug(
+                "Overbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} maximumAllowedPrice={}",
+                pricing.itemId(),
+                pricing.playerPrice(),
+                pricing.lowestBin(),
+                threshold,
+                maximumAllowedPrice
+        );
         if (pricing.playerPrice() > maximumAllowedPrice) {
             double overbidPercent = ((pricing.playerPrice() - pricing.lowestBin()) / pricing.lowestBin()) * 100.0;
             context.cancel();
             context.bypass(4);
+            MarketGuard.debug("Overbidding triggered itemId='{}' overbidPercent={}", pricing.itemId(), overbidPercent);
             overbidding(pricing.itemId(), overbidPercent, context.getRemainingBypassClicks(), context.getMc().player);
+            return;
         }
+
+        MarketGuard.debug("Overbidding check passed itemId='{}'", pricing.itemId());
     }
 }

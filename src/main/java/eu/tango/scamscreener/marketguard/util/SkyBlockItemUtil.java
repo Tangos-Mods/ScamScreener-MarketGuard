@@ -42,9 +42,13 @@ public class SkyBlockItemUtil {
         if (item == null || item.isEmpty()) throw new Exception("Item cannot be empty");
 
         String raw = item.getName().getString();
+        MarketGuard.debug("Reading player price from slot item name='{}'", raw);
         Matcher m = Pattern.compile(AuctionSlots.ITEM_PRICE.getItemName()).matcher(raw);
         if (!m.find()) throw new Exception("Cannot read item price: " + raw);
-        return Double.parseDouble(m.group().replaceAll("[^0-9,]", "").replace(",", ""));
+        String matchedPrice = m.group();
+        double parsedPrice = Double.parseDouble(matchedPrice.replaceAll("[^0-9,]", "").replace(",", ""));
+        MarketGuard.debug("Parsed player price rawMatch='{}' parsed={}", matchedPrice, parsedPrice);
+        return parsedPrice;
     }
 
     @Nullable
@@ -119,6 +123,10 @@ public class SkyBlockItemUtil {
             MarketGuard.LOGGER.error("Lowest BIN fetch failed for '{}': {}", itemId, e.getMessage(), e);
             return null;
         }
+    }
+
+    public static LowestBIN.LookupResult lookupLowestBin(String itemId) {
+        return LowestBIN.lookupLowestBIN(itemId);
     }
 
 

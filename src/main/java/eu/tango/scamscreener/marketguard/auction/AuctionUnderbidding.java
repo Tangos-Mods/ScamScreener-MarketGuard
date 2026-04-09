@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.auction;
 
+import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.underbidding;
@@ -38,12 +39,24 @@ public final class AuctionUnderbidding {
         if (pricing == null) return;
 
         double minimumAllowedPrice = pricing.lowestBin() * getMinimumAllowedPercentage();
+        MarketGuard.debug(
+                "Underbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} minimumAllowedPrice={}",
+                pricing.itemId(),
+                pricing.playerPrice(),
+                pricing.lowestBin(),
+                threshold,
+                minimumAllowedPrice
+        );
         if (pricing.playerPrice() < minimumAllowedPrice) {
             double underbidPercent = ((pricing.lowestBin() - pricing.playerPrice()) / pricing.lowestBin()) * 100.0;
             context.cancel();
             context.bypass(4);
+            MarketGuard.debug("Underbidding triggered itemId='{}' underbidPercent={}", pricing.itemId(), underbidPercent);
             underbidding(pricing.itemId(), underbidPercent, context.getRemainingBypassClicks(), context.getMc().player);
+            return;
         }
+
+        MarketGuard.debug("Underbidding check passed itemId='{}'", pricing.itemId());
     }
 
 }

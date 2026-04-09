@@ -4,6 +4,7 @@ import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import eu.tango.scamscreener.marketguard.command.MarketGuardCommand;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
+import eu.tango.scamscreener.marketguard.update.UpdateJoinNotifier;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -16,8 +17,15 @@ public class MarketGuard implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LOGGER.info("{} initialized on client", MOD_ID);
+        MarketGuardConfig.load();
         MarketGuardCommand.register();
+        UpdateJoinNotifier.initialize();
         registerListeners();
+    }
+
+    public static void debug(String message, Object... args) {
+        if (!MarketGuardConfig.isDebugEnabled()) return;
+        LOGGER.info("[MarketGuard][Debug] " + message, args);
     }
 
     public static Identifier id(String namespace, String path) {
