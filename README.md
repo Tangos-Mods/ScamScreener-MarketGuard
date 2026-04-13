@@ -63,8 +63,9 @@ The values are stored in `config/scamscreener_marketguard/config.json`.
 ## Important Notes
 
 - The mod uses `Lowest BIN` data from the external ScamScreener API.
-- If price data is still loading or temporarily unavailable, MarketGuard blocks the risky click instead of letting it pass blindly. Unless loading has failed.
-- If only stale cached data is available, the mod tells you.
+- MarketGuard refreshes `Lowest BIN` data when you open an Auction House screen and uses the cached snapshot for price checks.
+- If the API is slow or temporarily unavailable, MarketGuard does not block AH actions just because price data is missing.
+- If a refresh fails, the mod shows one warning and keeps using cached data when available.
 - On join, the mod can also notify you when a new version is available.
 
 ## Build

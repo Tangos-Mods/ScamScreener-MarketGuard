@@ -19,6 +19,7 @@ class LowestBINLookupTest {
         setField("refreshInFlight", null);
         setField("lastRefreshAttemptFailed", false);
         setField("lastRefreshAttemptAtMs", 0L);
+        setField("refreshFailureNoticeShown", false);
     }
 
     @Test
@@ -59,20 +60,21 @@ class LowestBINLookupTest {
     }
 
     @Test
-    void blocksWhileRefreshIsStillPending() throws Exception {
+    void returnsStaleCachedValueWhileRefreshIsStillPending() throws Exception {
         JsonObject snapshot = new JsonObject();
         snapshot.addProperty("FANCY_LEGGINGS", 123.0);
 
         setField("cachedSnapshot", snapshot);
         setField("cacheExpiresAtMs", 0L);
+        setField("refreshInFlight", new java.util.concurrent.CompletableFuture<JsonObject>());
         setField("lastRefreshAttemptFailed", false);
         setField("lastRefreshAttemptAtMs", System.currentTimeMillis());
 
         LowestBIN.LookupResult result = LowestBIN.lookupLowestBIN("FANCY_LEGGINGS");
 
-        assertFalse(result.hasValue());
+        assertTrue(result.hasValue());
         assertTrue(result.stale());
-        assertFalse(result.loading());
+        assertTrue(result.loading());
         assertFalse(result.refreshFailed());
     }
 

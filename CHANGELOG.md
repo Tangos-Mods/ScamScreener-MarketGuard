@@ -1,5 +1,4 @@
-## 1.1.1
+## 1.1.2
 
-- Added Rune Lowest BIN resolution from SkyBlock item data, so rune items now map to API keys such as `SNOW_RUNE;1` instead of the generic `RUNE`.
-- Missing Lowest BIN entries now use the normal bypass countdown instead of blocking BIN actions indefinitely.
-- Update notifications now compare only the mod version before `+`, so differing Minecraft suffixes like `1.1.0+1.21.11` no longer trigger false join messages.
+- Lowest BIN checks now only use cached data that was loaded when opening Auction House screens, so slow or unavailable API requests no longer block BIN buys or listings.
+- Failed Lowest BIN refreshes now show a single warning message instead of stopping AH actions, while stale cached prices continue to be used when available.

@@ -3,17 +3,26 @@ package eu.tango.scamscreener.marketguard.auction;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.util.MessageBuilder;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public class LowestBIN {
 
     private static final String URL = "https://scamscreener.creepans.net/api/v1/lowestbin";
-    private static final HttpClient CLIENT = HttpClient.newHttpClient();
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(8);
+    private static final HttpClient CLIENT = HttpClient.newBuilder()
+            .connectTimeout(CONNECT_TIMEOUT)
+            .build();
     private static final Object LOCK = new Object();
 
     // Cache full lowestbin.json snapshot for 60 seconds.
@@ -24,6 +33,7 @@ public class LowestBIN {
     private static volatile CompletableFuture<JsonObject> refreshInFlight;
     private static volatile boolean lastRefreshAttemptFailed = false;
     private static volatile long lastRefreshAttemptAtMs = 0L;
+    private static volatile boolean refreshFailureNoticeShown = false;
 
     public record LookupResult(Double value, boolean stale, boolean loading, boolean refreshFailed) {
         public boolean hasValue() {
@@ -45,30 +55,28 @@ public class LowestBIN {
         boolean fresh = snapshot != null && now < cacheExpiresAtMs;
         boolean stale = snapshot != null && !fresh;
         boolean loading = isRefreshInFlight();
+        Double value = readPrice(snapshot, itemId);
 
-        if (fresh) {
-            Double value = readPrice(snapshot, itemId);
-            MarketGuard.debug("Using fresh Lowest BIN cache itemId='{}' found={}", itemId, value != null);
-            return new LookupResult(value, false, loading, false);
-        }
-
-        refreshAsyncIfNeeded();
-
-        if (stale && lastRefreshAttemptFailed) {
-            Double value = readPrice(snapshot, itemId);
-            MarketGuard.debug("Using stale Lowest BIN cache itemId='{}' found={} after failed refresh", itemId, value != null);
-            return new LookupResult(value, true, isRefreshInFlight(), true);
+        if (value != null) {
+            MarketGuard.debug(
+                    "Using {} Lowest BIN cache itemId='{}' loading={} refreshFailed={}",
+                    fresh ? "fresh" : "stale",
+                    itemId,
+                    loading,
+                    lastRefreshAttemptFailed
+            );
+            return new LookupResult(value, stale, loading, lastRefreshAttemptFailed);
         }
 
         MarketGuard.debug(
-                "Lowest BIN cache unavailable for itemId='{}' hasSnapshot={} stale={} loading={} lastRefreshAttemptFailed={}",
+                "No cached Lowest BIN value for itemId='{}' hasSnapshot={} stale={} loading={} lastRefreshAttemptFailed={}",
                 itemId,
                 snapshot != null,
                 stale,
-                isRefreshInFlight(),
+                loading,
                 lastRefreshAttemptFailed
         );
-        return new LookupResult(null, stale, isRefreshInFlight(), lastRefreshAttemptFailed);
+        return new LookupResult(null, stale, loading, lastRefreshAttemptFailed);
     }
 
     public static void refreshAsyncIfNeeded() {
@@ -128,6 +136,7 @@ public class LowestBIN {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(URL))
+                .timeout(REQUEST_TIMEOUT)
                 .GET()
                 .build();
 
@@ -149,6 +158,7 @@ public class LowestBIN {
         MarketGuard.debug("Fetching Lowest BIN snapshot from {}", URL);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(URL))
+                .timeout(REQUEST_TIMEOUT)
                 .GET()
                 .build();
 
@@ -169,12 +179,14 @@ public class LowestBIN {
                 cachedSnapshot = snapshot;
                 cacheExpiresAtMs = System.currentTimeMillis() + TTL_MS;
                 lastRefreshAttemptFailed = false;
+                refreshFailureNoticeShown = false;
                 MarketGuard.debug("Async Lowest BIN refresh completed entries={} ttlMs={}", snapshot.size(), TTL_MS);
             } else {
                 lastRefreshAttemptFailed = true;
                 Throwable cause = rootCause(throwable);
                 MarketGuard.LOGGER.warn("Async Lowest BIN refresh failed: {}", cause.getMessage(), cause);
                 MarketGuard.debug("Async Lowest BIN refresh failed error='{}'", cause.getMessage());
+                notifyRefreshFailureOnce();
             }
 
             if (refreshInFlight == refreshFuture) {
@@ -194,6 +206,26 @@ public class LowestBIN {
         }
 
         return snapshot.get(itemId).getAsDouble();
+    }
+
+    private static void notifyRefreshFailureOnce() {
+        if (refreshFailureNoticeShown) {
+            return;
+        }
+
+        refreshFailureNoticeShown = true;
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.execute(() -> {
+            if (client.player == null) {
+                return;
+            }
+
+            MessageBuilder.error(
+                    Text.literal("Lowest BIN prices could not be refreshed. MarketGuard will not block AH actions because of missing API data.")
+                            .formatted(Formatting.YELLOW),
+                    client.player
+            );
+        });
     }
 
     private static Throwable rootCause(Throwable throwable) {
