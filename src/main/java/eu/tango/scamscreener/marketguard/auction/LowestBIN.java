@@ -3,6 +3,7 @@ package eu.tango.scamscreener.marketguard.auction;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
 import eu.tango.scamscreener.marketguard.util.MessageBuilder;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
@@ -17,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class LowestBIN {
 
-    private static final String URL = "https://scamscreener.creepans.net/api/v1/lowestbin";
+    private static final String URL = "https://scamscreener.creepans.net/api/v2/lowestbin";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(8);
     private static final HttpClient CLIENT = HttpClient.newBuilder()
@@ -25,7 +26,7 @@ public class LowestBIN {
             .build();
     private static final Object LOCK = new Object();
 
-    // Cache full lowestbin.json snapshot for 60 seconds.
+    // Cache the full lowestbin products snapshot for 60 seconds.
     private static final long TTL_MS = 60_000;
     private static final long RETRY_DELAY_MS = 10_000;
     private static volatile JsonObject cachedSnapshot;
@@ -34,6 +35,7 @@ public class LowestBIN {
     private static volatile boolean lastRefreshAttemptFailed = false;
     private static volatile long lastRefreshAttemptAtMs = 0L;
     private static volatile boolean refreshFailureNoticeShown = false;
+    private static volatile String lastBlacklistNoticeKey;
 
     public record LookupResult(Double value, boolean stale, boolean loading, boolean refreshFailed) {
         public boolean hasValue() {
@@ -43,8 +45,8 @@ public class LowestBIN {
 
     public static double getLowestBIN(String itemId) throws Exception {
         JsonObject snapshot = getSnapshot();
-        if (!snapshot.has(itemId)) throw new Exception("Item not found");
-        double lowestBin = snapshot.get(itemId).getAsDouble();
+        Double lowestBin = readPrice(snapshot, itemId);
+        if (lowestBin == null) throw new Exception("Item not found");
         MarketGuard.debug("Lowest BIN lookup hit itemId='{}' value={}", itemId, lowestBin);
         return lowestBin;
     }
@@ -107,6 +109,35 @@ public class LowestBIN {
         }
     }
 
+    public static void checkBlacklistedAuctioneerAsyncIfNeeded(String itemId) {
+        if (itemId == null || itemId.isBlank()) {
+            MarketGuard.debug("Skipping blacklisted auctioneer check because itemId was blank");
+            return;
+        }
+
+        JsonObject snapshot = cachedSnapshot;
+        if (snapshot != null) {
+            notifyBlacklistedAuctioneerIfPresent(snapshot, itemId);
+            if (System.currentTimeMillis() < cacheExpiresAtMs) {
+                return;
+            }
+        }
+
+        refreshAsyncIfNeeded();
+
+        CompletableFuture<JsonObject> refreshFuture = refreshInFlight;
+        if (refreshFuture == null) {
+            return;
+        }
+
+        refreshFuture.thenAccept(refreshedSnapshot -> notifyBlacklistedAuctioneerIfPresent(refreshedSnapshot, itemId))
+                .exceptionally(throwable -> null);
+    }
+
+    public static void resetBlacklistNoticeState() {
+        lastBlacklistNoticeKey = null;
+    }
+
     private static JsonObject getSnapshot() throws Exception {
         long now = System.currentTimeMillis();
         JsonObject snapshot = cachedSnapshot;
@@ -144,12 +175,12 @@ public class LowestBIN {
                 .thenApply(response -> {
                     long durationMs = System.currentTimeMillis() - startedAt;
                     MarketGuard.debug(
-                            "Lowest BIN async response status={} durationMs={} bodyLength={}",
-                            response.statusCode(),
-                            durationMs,
-                            response.body().length()
+                    "Lowest BIN async response status={} durationMs={} bodyLength={}",
+                    response.statusCode(),
+                    durationMs,
+                    response.body().length()
                     );
-                    return JsonParser.parseString(response.body()).getAsJsonObject();
+                    return parseSnapshot(response);
                 });
     }
 
@@ -170,7 +201,7 @@ public class LowestBIN {
                 durationMs,
                 response.body().length()
         );
-        return JsonParser.parseString(response.body()).getAsJsonObject();
+        return parseSnapshot(response);
     }
 
     private static void finishRefresh(CompletableFuture<JsonObject> refreshFuture, JsonObject snapshot, Throwable throwable) {
@@ -201,11 +232,72 @@ public class LowestBIN {
     }
 
     private static Double readPrice(JsonObject snapshot, String itemId) {
-        if (snapshot == null || !snapshot.has(itemId)) {
+        JsonObject product = readProduct(snapshot, itemId);
+        if (product == null) {
             return null;
         }
 
-        return snapshot.get(itemId).getAsDouble();
+        notifyBlacklistedAuctioneerIfPresent(snapshot, itemId);
+
+        if (!product.has("price")) {
+            return null;
+        }
+
+        return product.get("price").getAsDouble();
+    }
+
+    private static JsonObject readProduct(JsonObject snapshot, String itemId) {
+        if (snapshot == null || !snapshot.has(itemId) || !snapshot.get(itemId).isJsonObject()) {
+            return null;
+        }
+
+        return snapshot.getAsJsonObject(itemId);
+    }
+
+    private static String readAuctioneerUuid(JsonObject product) {
+        if (product == null || !product.has("auctioneerUuid")) {
+            return null;
+        }
+
+        return product.get("auctioneerUuid").getAsString();
+    }
+
+    private static JsonObject parseSnapshot(HttpResponse<String> response) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IllegalStateException("Lowest BIN request failed with status " + response.statusCode());
+        }
+
+        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+        if (!root.has("products") || !root.get("products").isJsonObject()) {
+            throw new IllegalStateException("Lowest BIN response did not contain a products object");
+        }
+
+        return root.getAsJsonObject("products");
+    }
+
+    private static void notifyBlacklistedAuctioneerIfPresent(JsonObject snapshot, String itemId) {
+        JsonObject product = readProduct(snapshot, itemId);
+        if (product == null) {
+            return;
+        }
+
+        String auctioneerUuid = readAuctioneerUuid(product);
+        MarketGuard.debug(
+                "Checking Lowest BIN auctioneer against ScamScreener blacklist itemId='{}' auctioneerUuid='{}'",
+                itemId,
+                auctioneerUuid
+        );
+        String blacklistedPlayerName = ScamScreenerBlacklistCompat.findBlacklistedPlayerName(auctioneerUuid);
+        if (blacklistedPlayerName != null) {
+            MarketGuard.debug(
+                    "Lowest BIN auctioneer matched ScamScreener blacklist itemId='{}' player='{}'",
+                    itemId,
+                    blacklistedPlayerName
+            );
+            notifyBlacklistedAuctioneer(itemId, blacklistedPlayerName);
+        } else {
+            MarketGuard.debug("Lowest BIN auctioneer was not present in ScamScreener blacklist itemId='{}'", itemId);
+        }
     }
 
     private static void notifyRefreshFailureOnce() {
@@ -225,6 +317,37 @@ public class LowestBIN {
                             .formatted(Formatting.YELLOW),
                     client.player
             );
+        });
+    }
+
+    private static void notifyBlacklistedAuctioneer(String itemId, String playerName) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+
+        client.execute(() -> {
+            if (client.player == null) {
+                return;
+            }
+
+            String screenTitle = client.currentScreen != null && client.currentScreen.getTitle() != null
+                    ? client.currentScreen.getTitle().getString()
+                    : "<no screen>";
+            String noticeKey = screenTitle + "|" + itemId + "|" + playerName;
+            if (noticeKey.equals(lastBlacklistNoticeKey)) {
+                MarketGuard.debug(
+                        "Skipping duplicate ScamScreener blacklist notice screen='{}' itemId='{}' player='{}'",
+                        screenTitle,
+                        itemId,
+                        playerName
+                );
+                return;
+            }
+
+            lastBlacklistNoticeKey = noticeKey;
+
+            MessageBuilder.blacklistedPlayer(playerName, client.player);
         });
     }
 

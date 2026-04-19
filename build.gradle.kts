@@ -77,6 +77,8 @@ repositories {
 }
 
 dependencies {
+    val scamscreenerVersion = "2.3.1+${sc.current.version}"
+
     /**
      * Fetches only the required Fabric API modules to not waste time downloading all of them for each version.
      * @see <a href="https://github.com/FabricMC/fabric">List of Fabric API modules</a>
@@ -95,6 +97,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.mockito:mockito-core:5.17.0")
+    modCompileOnly("maven.modrinth:scamscreener:$scamscreenerVersion")
 
     fapi("fabric-lifecycle-events-v1", "fabric-resource-loader-v0", "fabric-content-registries-v0", "fabric-command-api-v2", "fabric-networking-api-v1")
 }

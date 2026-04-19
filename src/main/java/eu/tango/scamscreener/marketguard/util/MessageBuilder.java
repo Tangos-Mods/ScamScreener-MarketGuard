@@ -70,6 +70,14 @@ public class MessageBuilder {
                 false);
     }
 
+    public static void blacklistedPlayer(String playerName, ClientPlayerEntity player) {
+        String displayName = (playerName == null || playerName.isBlank()) ? "<unknown player>" : playerName;
+        player.sendMessage(
+                PREFIX.copy().append(Text.literal(displayName + " is listed in your blacklist! Be cautious!").formatted(Formatting.YELLOW)),
+                false
+        );
+    }
+
     public static MutableText updateAvailable(String currentVersion, String latestVersion, String modrinthUrl, String changelog) {
         return PREFIX.copy()
                 .append(Text.literal("Update available ").formatted(Formatting.GRAY))

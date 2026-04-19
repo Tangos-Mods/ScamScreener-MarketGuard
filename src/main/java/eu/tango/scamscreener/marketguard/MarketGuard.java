@@ -3,6 +3,7 @@ package eu.tango.scamscreener.marketguard;
 import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import eu.tango.scamscreener.marketguard.command.MarketGuardCommand;
+import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import eu.tango.scamscreener.marketguard.update.UpdateJoinNotifier;
 import net.fabricmc.api.ClientModInitializer;
@@ -18,6 +19,7 @@ public class MarketGuard implements ClientModInitializer {
     public void onInitializeClient() {
         LOGGER.info("{} initialized on client", MOD_ID);
         MarketGuardConfig.load();
+        ScamScreenerBlacklistCompat.initialize();
         MarketGuardCommand.register();
         UpdateJoinNotifier.initialize();
         registerListeners();

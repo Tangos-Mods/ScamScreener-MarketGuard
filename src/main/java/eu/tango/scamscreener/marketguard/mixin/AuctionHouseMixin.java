@@ -3,9 +3,11 @@ package eu.tango.scamscreener.marketguard.mixin;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.auction.AuctionInventory;
 import eu.tango.scamscreener.marketguard.auction.LowestBIN;
+import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
@@ -27,8 +29,10 @@ public abstract class AuctionHouseMixin {
         String title = screen.getTitle() != null ? screen.getTitle().getString() : null;
         if (!isAuctionScreen(title)) return;
 
+        LowestBIN.resetBlacklistNoticeState();
         MarketGuard.debug("Auction screen opened title='{}', requesting Lowest BIN refresh if needed", title);
         LowestBIN.refreshAsyncIfNeeded();
+        triggerBlacklistCheck(screen, title);
     }
 
     @Inject(
@@ -53,6 +57,7 @@ public abstract class AuctionHouseMixin {
                     slot.getStack().isEmpty() ? "<empty>" : slot.getStack().getName().getString(),
                     BYPASS_COUNTDOWN.get()
             );
+            triggerBlacklistCheck((HandledScreen<?>)(Object)this, currentTitle);
         }
         resetBypassIfTitleChanged(currentTitle);
         if (consumeBypass()) return;
@@ -86,6 +91,7 @@ public abstract class AuctionHouseMixin {
     @Inject(method = "removed()V", at = @At("HEAD"))
     private void resetBypassOnScreenClose(CallbackInfo ci) {
         resetBypass();
+        LowestBIN.resetBlacklistNoticeState();
     }
 
     private static void scheduleBypass(String title, int clicks) {
@@ -148,6 +154,35 @@ public abstract class AuctionHouseMixin {
             }
         }
         return false;
+    }
+
+    private static void triggerBlacklistCheck(HandledScreen<?> screen, String title) {
+        String itemId = resolveAuctionItemId(screen);
+        if (itemId == null) {
+            MarketGuard.debug("Auction blacklist check skipped title='{}' because no SkyBlock item id was available", title);
+            return;
+        }
+
+        MarketGuard.debug("Auction blacklist check requested title='{}' itemId='{}'", title, itemId);
+        LowestBIN.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
+    }
+
+    private static String resolveAuctionItemId(HandledScreen<?> screen) {
+        if (screen == null || screen.getScreenHandler() == null) {
+            return null;
+        }
+
+        int itemSlot = eu.tango.scamscreener.marketguard.auction.AuctionSlots.ITEM.getSlot();
+        if (screen.getScreenHandler().slots.size() <= itemSlot) {
+            return null;
+        }
+
+        ItemStack itemStack = screen.getScreenHandler().getSlot(itemSlot).getStack();
+        if (itemStack == null || itemStack.isEmpty()) {
+            return null;
+        }
+
+        return SkyBlockItemUtil.getSkyblockId(itemStack);
     }
 
 }

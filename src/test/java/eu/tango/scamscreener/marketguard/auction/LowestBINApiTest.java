@@ -26,6 +26,8 @@ class LowestBINApiTest {
 
         assertTrue(snapshot.size() > 0, "lowestbin snapshot should not be empty");
         assertTrue(snapshot.has("ABICASE"), "snapshot should contain a known simple item");
+        assertTrue(snapshot.getAsJsonObject("ABICASE").has("price"), "snapshot entry should contain a price");
+        assertTrue(snapshot.getAsJsonObject("ABICASE").has("auctioneerUuid"), "snapshot entry should contain an auctioneerUuid");
     }
 
     @Test
