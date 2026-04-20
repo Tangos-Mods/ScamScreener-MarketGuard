@@ -32,10 +32,10 @@ public final class AuctionUnderbidding {
 
     public static void onInteract(AuctionInteractEvent.Context context) {
         if (!context.isCreateBinClick()) return;
-        if (context.getMc().player == null) return;
+        if (context.getMc() == null || context.getMc().player == null) return;
         if (!isEnabled()) return;
 
-        AuctionPricingResolver.PricingData pricing = AuctionPricingResolver.resolve(context);
+        AuctionPricingResolver.PricingData pricing = AuctionPricingResolver.resolve(context, context.getMc().player, true);
         if (pricing == null) return;
 
         double minimumAllowedPrice = pricing.lowestBin() * getMinimumAllowedPercentage();
@@ -52,7 +52,7 @@ public final class AuctionUnderbidding {
             context.cancel();
             context.bypass(4);
             MarketGuard.debug("Underbidding triggered itemId='{}' underbidPercent={}", pricing.itemId(), underbidPercent);
-            underbidding(pricing.itemId(), underbidPercent, context.getRemainingBypassClicks(), context.getMc().player);
+            underbidding(pricing.itemId(), pricing.displayName(), underbidPercent, context.getRemainingBypassClicks(), context.getMc().player);
             return;
         }
 

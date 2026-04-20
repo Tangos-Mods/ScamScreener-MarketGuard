@@ -1,6 +1,6 @@
-## 1.2.0
+## 1.2.1
 
-- Lowest BIN lookups now use the new ScamScreener API `v2` payload with `products`, `price`, and `auctioneerUuid`.
-- Added optional ScamScreener integration as a soft dependency via Modrinth Maven and Fabric `suggests`, so MarketGuard can check Lowest BIN auctioneers against your ScamScreener blacklist when the mod is installed.
-- Auction screens now warn with `[MarketGuard] <player> is listed in your blacklist! Be cautious!` when the current Lowest BIN auctioneer is blacklisted, including `Confirm Purchase`, without blocking the normal Lowest BIN comparison flow.
-- Added detailed debug logs for the ScamScreener blacklist check path, including lookup trigger, UUID parsing, match/no-match results, and duplicate-notice suppression. (Only when debug=true in config)
+- Reworked the BIN purchase flow so `Buy Item Right Now` detection no longer depends on a fragile screen-title match and now uses the configured auction slot/button data consistently.
+- Overbidding now runs on the same BIN buy-click path as the blacklist warning, so both checks trigger together during the normal purchase flow.
+- Overbidding no longer blocks the purchase when the auction item or SkyBlock item id could not be read; it now only sends the existing chat error in those failure cases.
+- fixed Music Discs got not recognized by the Guard due to awkward Item IDs

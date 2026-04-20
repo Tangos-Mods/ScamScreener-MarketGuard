@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.events;
 
+import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,5 +40,17 @@ class AuctionInteractEventTest {
         assertFalse(context.isCancelled());
         context.cancel();
         assertTrue(context.isCancelled());
+    }
+
+    @Test
+    void buyBinSlotPatternMatchesExpectedButtonName() {
+        assertTrue(AuctionSlots.BUY_BIN_ITEM.matchesSlot(31));
+        assertTrue(AuctionSlots.BUY_BIN_ITEM.matchesName("Buy Item Right Now"));
+    }
+
+    @Test
+    void buyBinSlotPatternRejectsWrongSlotOrButtonName() {
+        assertFalse(AuctionSlots.BUY_BIN_ITEM.matchesSlot(13));
+        assertFalse(AuctionSlots.BUY_BIN_ITEM.matchesName("Confirm Purchase"));
     }
 }

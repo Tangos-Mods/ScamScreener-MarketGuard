@@ -13,12 +13,9 @@ import static eu.tango.scamscreener.marketguard.util.MessageBuilder.error;
 final class AuctionPricingResolver {
     private AuctionPricingResolver() {}
 
-    record PricingData(String itemId, double lowestBin, double playerPrice) {}
+    record PricingData(String itemId, String displayName, double lowestBin, double playerPrice) {}
 
-    static PricingData resolve(AuctionInteractEvent.Context context) {
-        ClientPlayerEntity player = context.getMc().player;
-        if (player == null) return null;
-
+    static PricingData resolve(AuctionInteractEvent.Context context, ClientPlayerEntity player, boolean cancelOnFailure) {
         ItemStack itemStack = context.getAuctionItemStack();
         MarketGuard.debug(
                 "Resolving pricing title='{}' clickedSlot={} actionType={} auctionItem='{}'",
@@ -29,19 +26,21 @@ final class AuctionPricingResolver {
         );
         if (itemStack.isEmpty()) {
             MarketGuard.debug("Pricing resolution aborted: auction item stack was empty");
-            context.cancel();
-            error(Text.literal("Could not find Auction Item").formatted(Formatting.RED), player);
-            return null;
+            return abortPricing(context, player, Text.literal("Could not find Auction Item").formatted(Formatting.RED), cancelOnFailure);
         }
 
         String itemId = SkyBlockItemUtil.getSkyblockId(itemStack);
         if (itemId == null) {
             MarketGuard.debug("Pricing resolution aborted: no SkyBlock ID found for '{}'", itemStack.getName().getString());
-            context.cancel();
-            error(Text.literal("Could not read Skyblock ID for ").append(itemStack.getName()).formatted(Formatting.RED), player);
-            return null;
+            return abortPricing(
+                    context,
+                    player,
+                    Text.literal("Could not read Skyblock ID for ").append(itemStack.getName()).formatted(Formatting.RED),
+                    cancelOnFailure
+            );
         }
         MarketGuard.debug("Resolved SkyBlock item id='{}'", itemId);
+        String displayName = itemStack.getName().getString();
 
         LowestBIN.LookupResult lookupResult = SkyBlockItemUtil.lookupLowestBin(itemId);
         if (!lookupResult.hasValue()) {
@@ -62,21 +61,41 @@ final class AuctionPricingResolver {
         double lowestBin = lookupResult.value();
         if (lowestBin <= 0.0) {
             MarketGuard.debug("Pricing resolution aborted: Lowest BIN was invalid for '{}' value={}", itemId, lowestBin);
-            context.cancel();
-            error(Text.literal("Lowest BIN is invalid for ").append(itemId).formatted(Formatting.RED), player);
-            return null;
+            return abortPricing(
+                    context,
+                    player,
+                    Text.literal("Lowest BIN is invalid for ").append(itemId).formatted(Formatting.RED),
+                    cancelOnFailure
+            );
         }
         MarketGuard.debug("Resolved Lowest BIN itemId='{}' value={}", itemId, lowestBin);
 
         try {
             double playerPrice = context.getPlayerPrice();
             MarketGuard.debug("Resolved player price itemId='{}' value={}", itemId, playerPrice);
-            return new PricingData(itemId, lowestBin, playerPrice);
+            return new PricingData(itemId, displayName, lowestBin, playerPrice);
         } catch (Exception e) {
             MarketGuard.debug("Pricing resolution failed while reading player price for '{}' error='{}'", itemId, e.getMessage());
-            context.cancel();
-            error(Text.literal("Failed to catch item price: " + e.getMessage()).formatted(Formatting.RED), player);
-            return null;
+            return abortPricing(
+                    context,
+                    player,
+                    Text.literal("Failed to catch item price: " + e.getMessage()).formatted(Formatting.RED),
+                    cancelOnFailure
+            );
         }
+    }
+
+    private static PricingData abortPricing(
+            AuctionInteractEvent.Context context,
+            ClientPlayerEntity player,
+            Text message,
+            boolean cancelOnFailure
+    ) {
+        if (cancelOnFailure) {
+            context.cancel();
+        }
+
+        error(message, player);
+        return null;
     }
 }

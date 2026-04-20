@@ -22,22 +22,12 @@ public class MessageBuilder {
          player.sendMessage(PREFIX.copy().append(error), false);
     }
 
-    public static void underbidding(String item, double underbidPercent, int remainingClicks, ClientPlayerEntity player) {
-        int color = Colors.YELLOW;
-
-        if (item.contains(";")) {
-           String[] s = item.split(";", 2);
-           item = s[0];
-           try {
-               ItemTier tier = ItemTier.fromId(Integer.parseInt(s[1]));
-               if (tier != null) { color = tier.getColor(); }
-           } catch (NumberFormatException ignored) {}
-
-        }
+    public static void underbidding(String itemId, String itemDisplayName, double underbidPercent, int remainingClicks, ClientPlayerEntity player) {
+        int color = resolveItemColor(itemId);
 
         player.sendMessage(PREFIX.copy()
                 .append(Text.literal("You are underbidding ").formatted(Formatting.GRAY))
-                .append(Text.literal(firstLetterUp(item)).withColor(color))
+                .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
                 .append(Text.literal(" by ").formatted(Formatting.GRAY))
                 .append(Text.literal(String.format(Locale.US, "%.2f%%", underbidPercent)).withColor(Colors.YELLOW))
                 .append(Text.literal(" (").formatted(Formatting.GRAY))
@@ -46,22 +36,12 @@ public class MessageBuilder {
                 false);
     }
 
-    public static void overbidding(String item, double overbidPercent, int remainingClicks, ClientPlayerEntity player) {
-        int color = Colors.YELLOW;
-
-        if (item.contains(";")) {
-            String[] s = item.split(";", 2);
-            item = s[0];
-            try {
-                ItemTier tier = ItemTier.fromId(Integer.parseInt(s[1]));
-                if (tier != null) { color = tier.getColor(); }
-            } catch (NumberFormatException ignored) {}
-
-        }
+    public static void overbidding(String itemId, String itemDisplayName, double overbidPercent, int remainingClicks, ClientPlayerEntity player) {
+        int color = resolveItemColor(itemId);
 
         player.sendMessage(PREFIX.copy()
                         .append(Text.literal("You are overbidding ").formatted(Formatting.GRAY))
-                        .append(Text.literal(firstLetterUp(item)).withColor(color))
+                        .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
                         .append(Text.literal(" by ").formatted(Formatting.GRAY))
                         .append(Text.literal(String.format(Locale.US, "%.2f%%", overbidPercent)).withColor(Colors.YELLOW))
                         .append(Text.literal(" (").formatted(Formatting.GRAY))
@@ -76,6 +56,21 @@ public class MessageBuilder {
                 PREFIX.copy().append(Text.literal(displayName + " is listed in your blacklist! Be cautious!").formatted(Formatting.YELLOW)),
                 false
         );
+    }
+
+    static String resolveDisplayItemName(String itemDisplayName, String itemId) {
+        if (itemDisplayName != null && !itemDisplayName.isBlank()) {
+            return itemDisplayName;
+        }
+
+        if (itemId == null || itemId.isBlank()) {
+            return "<unknown item>";
+        }
+
+        String normalizedItemId = itemId.contains(";")
+                ? itemId.split(";", 2)[0]
+                : itemId;
+        return firstLetterUp(normalizedItemId);
     }
 
     public static MutableText updateAvailable(String currentVersion, String latestVersion, String modrinthUrl, String changelog) {
@@ -103,6 +98,23 @@ public class MessageBuilder {
         }
 
         return result.toString();
+    }
+
+    private static int resolveItemColor(String itemId) {
+        if (itemId == null || itemId.isBlank() || !itemId.contains(";")) {
+            return Colors.YELLOW;
+        }
+
+        String[] splitItemId = itemId.split(";", 2);
+        try {
+            ItemTier tier = ItemTier.fromId(Integer.parseInt(splitItemId[1]));
+            if (tier != null) {
+                return tier.getColor();
+            }
+        } catch (NumberFormatException ignored) {
+        }
+
+        return Colors.YELLOW;
     }
 
     static MutableText changelogHoverText(String changelog) {

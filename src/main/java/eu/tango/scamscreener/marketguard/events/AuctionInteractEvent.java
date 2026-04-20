@@ -70,7 +70,7 @@ public final class AuctionInteractEvent {
         }
 
         public ItemStack getStack() {
-            return slot.getStack();
+            return slot == null ? ItemStack.EMPTY : slot.getStack();
         }
 
         public String getInventoryName() {
@@ -92,15 +92,13 @@ public final class AuctionInteractEvent {
         }
 
         public boolean isCreateBinClick() {
-            if (getInventoryName() == null) return false;
-            if (!getInventoryName().contains(AuctionInventory.CREATE_BIN.getTitle())) return false;
-            return getSlotId() == AuctionSlots.CREATE_BIN.getSlot();
+            return AuctionInventory.CREATE_BIN.matches(getInventoryName())
+                    && AuctionSlots.CREATE_BIN.matchesSlot(getSlotId());
         }
 
         public boolean isBinView() {
-            if (getInventoryName() == null) return false;
-            if (!getInventoryName().contains(AuctionInventory.BIN_VIEW.getTitle())) return false;
-            return getSlotId() == AuctionSlots.BUY_BIN_ITEM.getSlot();
+            return AuctionSlots.BUY_BIN_ITEM.matchesSlot(getSlotId())
+                    && AuctionSlots.BUY_BIN_ITEM.matchesStack(getStack());
         }
 
     }

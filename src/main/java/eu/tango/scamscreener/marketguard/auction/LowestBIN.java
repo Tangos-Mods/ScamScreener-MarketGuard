@@ -331,14 +331,10 @@ public class LowestBIN {
                 return;
             }
 
-            String screenTitle = client.currentScreen != null && client.currentScreen.getTitle() != null
-                    ? client.currentScreen.getTitle().getString()
-                    : "<no screen>";
-            String noticeKey = screenTitle + "|" + itemId + "|" + playerName;
+            String noticeKey = itemId + "|" + playerName;
             if (noticeKey.equals(lastBlacklistNoticeKey)) {
                 MarketGuard.debug(
-                        "Skipping duplicate ScamScreener blacklist notice screen='{}' itemId='{}' player='{}'",
-                        screenTitle,
+                        "Skipping duplicate ScamScreener blacklist notice itemId='{}' player='{}'",
                         itemId,
                         playerName
                 );
