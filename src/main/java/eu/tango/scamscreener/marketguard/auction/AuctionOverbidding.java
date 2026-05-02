@@ -60,7 +60,14 @@ public final class AuctionOverbidding {
             context.cancel();
             context.bypass(4);
             MarketGuard.debug("Overbidding triggered itemId='{}' overbidPercent={}", pricing.itemId(), overbidPercent);
-            overbidding(pricing.itemId(), pricing.displayName(), overbidPercent, context.getRemainingBypassClicks(), mc.player);
+            overbidding(
+                    pricing.itemId(),
+                    pricing.displayName(),
+                    overbidPercent,
+                    maximumAllowedPrice,
+                    context.getRemainingBypassClicks(),
+                    mc.player
+            );
             return;
         }
 

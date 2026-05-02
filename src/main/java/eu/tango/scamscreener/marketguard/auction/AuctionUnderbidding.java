@@ -52,7 +52,14 @@ public final class AuctionUnderbidding {
             context.cancel();
             context.bypass(4);
             MarketGuard.debug("Underbidding triggered itemId='{}' underbidPercent={}", pricing.itemId(), underbidPercent);
-            underbidding(pricing.itemId(), pricing.displayName(), underbidPercent, context.getRemainingBypassClicks(), context.getMc().player);
+            underbidding(
+                    pricing.itemId(),
+                    pricing.displayName(),
+                    underbidPercent,
+                    minimumAllowedPrice,
+                    context.getRemainingBypassClicks(),
+                    context.getMc().player
+            );
             return;
         }
 

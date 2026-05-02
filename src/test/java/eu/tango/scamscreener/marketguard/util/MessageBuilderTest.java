@@ -21,4 +21,20 @@ class MessageBuilderTest {
                 MessageBuilder.resolveDisplayItemName(null, "FANCY_LEGGINGS;5")
         );
     }
+
+    @Test
+    void buildUnderbiddingMessageIncludesLowestPossiblePrice() {
+        assertEquals(
+                "[MarketGuard] You are underbidding Fancy Leggings by 12.34%. Lowest possible price is 1,234 (4 clicks until bypass)",
+                MessageBuilder.buildUnderbiddingMessage("FANCY_LEGGINGS;5", "Fancy Leggings", 12.34, 1234.0, 4).getString()
+        );
+    }
+
+    @Test
+    void buildOverbiddingMessageIncludesHighestPossiblePrice() {
+        assertEquals(
+                "[MarketGuard] You are overbidding Fancy Leggings by 12.34%. Highest possible price is 1,234.50 (4 clicks until bypass)",
+                MessageBuilder.buildOverbiddingMessage("FANCY_LEGGINGS;5", "Fancy Leggings", 12.34, 1234.5, 4).getString()
+        );
+    }
 }

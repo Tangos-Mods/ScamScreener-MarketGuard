@@ -5,10 +5,12 @@ import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
 import eu.tango.scamscreener.marketguard.auction.LowestBIN;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
+import net.minecraft.component.type.LoreComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,6 +18,7 @@ import java.util.regex.Pattern;
 public class SkyBlockItemUtil {
     private static final Pattern PET_TYPE_PATTERN = Pattern.compile("\"?type\"?\\s*:\\s*\"?([A-Za-z0-9_]+)\"?");
     private static final Pattern PET_TIER_PATTERN = Pattern.compile("\"?tier\"?\\s*:\\s*\"?([A-Za-z_]+)\"?");
+    private static final String AUCTION_FOR_ITEM_PLACEHOLDER = "AUCTION FOR ITEM:";
 
     @Nullable
     public static String getSkyblockId(ItemStack itemStack) {
@@ -49,6 +52,42 @@ public class SkyBlockItemUtil {
         double parsedPrice = Double.parseDouble(matchedPrice.replaceAll("[^0-9,]", "").replace(",", ""));
         MarketGuard.debug("Parsed player price rawMatch='{}' parsed={}", matchedPrice, parsedPrice);
         return parsedPrice;
+    }
+
+    public static String getDisplayName(ItemStack itemStack) {
+        if (itemStack == null || itemStack.isEmpty()) {
+            return null;
+        }
+
+        String displayName = itemStack.getName().getString();
+        LoreComponent lore = itemStack.get(DataComponentTypes.LORE);
+        return resolveDisplayName(displayName, lore == null ? List.of() : lore.lines());
+    }
+
+    static String resolveDisplayName(String displayName, List<net.minecraft.text.Text> loreLines) {
+        if (displayName == null) {
+            return null;
+        }
+
+        if (!AUCTION_FOR_ITEM_PLACEHOLDER.equalsIgnoreCase(displayName.trim())) {
+            return displayName;
+        }
+
+        if (loreLines.size() > 1 && loreLines.getFirst().getString().isBlank()) {
+            String thirdTooltipLine = loreLines.get(1).getString().trim();
+            if (!thirdTooltipLine.isBlank()) {
+                return thirdTooltipLine;
+            }
+        }
+
+        for (net.minecraft.text.Text line : loreLines) {
+            String value = line.getString().trim();
+            if (!value.isBlank()) {
+                return value;
+            }
+        }
+
+        return displayName;
     }
 
     @Nullable

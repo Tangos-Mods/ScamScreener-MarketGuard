@@ -40,7 +40,7 @@ final class AuctionPricingResolver {
             );
         }
         MarketGuard.debug("Resolved SkyBlock item id='{}'", itemId);
-        String displayName = itemStack.getName().getString();
+        String displayName = SkyBlockItemUtil.getDisplayName(itemStack);
 
         LowestBIN.LookupResult lookupResult = SkyBlockItemUtil.lookupLowestBin(itemId);
         if (!lookupResult.hasValue()) {

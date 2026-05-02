@@ -22,32 +22,68 @@ public class MessageBuilder {
          player.sendMessage(PREFIX.copy().append(error), false);
     }
 
-    public static void underbidding(String itemId, String itemDisplayName, double underbidPercent, int remainingClicks, ClientPlayerEntity player) {
+    public static void underbidding(
+            String itemId,
+            String itemDisplayName,
+            double underbidPercent,
+            double lowestPossiblePrice,
+            int remainingClicks,
+            ClientPlayerEntity player
+    ) {
+        player.sendMessage(buildUnderbiddingMessage(itemId, itemDisplayName, underbidPercent, lowestPossiblePrice, remainingClicks), false);
+    }
+
+    static MutableText buildUnderbiddingMessage(
+            String itemId,
+            String itemDisplayName,
+            double underbidPercent,
+            double lowestPossiblePrice,
+            int remainingClicks
+    ) {
         int color = resolveItemColor(itemId);
 
-        player.sendMessage(PREFIX.copy()
+        return PREFIX.copy()
                 .append(Text.literal("You are underbidding ").formatted(Formatting.GRAY))
                 .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
                 .append(Text.literal(" by ").formatted(Formatting.GRAY))
                 .append(Text.literal(String.format(Locale.US, "%.2f%%", underbidPercent)).withColor(Colors.YELLOW))
+                .append(Text.literal(". Lowest possible price is ").formatted(Formatting.GRAY))
+                .append(Text.literal(formatPrice(lowestPossiblePrice)).withColor(Colors.YELLOW))
                 .append(Text.literal(" (").formatted(Formatting.GRAY))
                 .append(Text.literal(String.valueOf(remainingClicks) + " clicks").formatted(Formatting.BOLD, Formatting.RED))
-                .append(Text.literal(" until bypass)").formatted(Formatting.GRAY)),
-                false);
+                .append(Text.literal(" until bypass)").formatted(Formatting.GRAY));
     }
 
-    public static void overbidding(String itemId, String itemDisplayName, double overbidPercent, int remainingClicks, ClientPlayerEntity player) {
+    public static void overbidding(
+            String itemId,
+            String itemDisplayName,
+            double overbidPercent,
+            double highestPossiblePrice,
+            int remainingClicks,
+            ClientPlayerEntity player
+    ) {
+        player.sendMessage(buildOverbiddingMessage(itemId, itemDisplayName, overbidPercent, highestPossiblePrice, remainingClicks), false);
+    }
+
+    static MutableText buildOverbiddingMessage(
+            String itemId,
+            String itemDisplayName,
+            double overbidPercent,
+            double highestPossiblePrice,
+            int remainingClicks
+    ) {
         int color = resolveItemColor(itemId);
 
-        player.sendMessage(PREFIX.copy()
-                        .append(Text.literal("You are overbidding ").formatted(Formatting.GRAY))
-                        .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
-                        .append(Text.literal(" by ").formatted(Formatting.GRAY))
-                        .append(Text.literal(String.format(Locale.US, "%.2f%%", overbidPercent)).withColor(Colors.YELLOW))
-                        .append(Text.literal(" (").formatted(Formatting.GRAY))
-                        .append(Text.literal(String.valueOf(remainingClicks) + " clicks").formatted(Formatting.BOLD, Formatting.RED))
-                        .append(Text.literal(" until bypass)").formatted(Formatting.GRAY)),
-                false);
+        return PREFIX.copy()
+                .append(Text.literal("You are overbidding ").formatted(Formatting.GRAY))
+                .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
+                .append(Text.literal(" by ").formatted(Formatting.GRAY))
+                .append(Text.literal(String.format(Locale.US, "%.2f%%", overbidPercent)).withColor(Colors.YELLOW))
+                .append(Text.literal(". Highest possible price is ").formatted(Formatting.GRAY))
+                .append(Text.literal(formatPrice(highestPossiblePrice)).withColor(Colors.YELLOW))
+                .append(Text.literal(" (").formatted(Formatting.GRAY))
+                .append(Text.literal(String.valueOf(remainingClicks) + " clicks").formatted(Formatting.BOLD, Formatting.RED))
+                .append(Text.literal(" until bypass)").formatted(Formatting.GRAY));
     }
 
     public static void blacklistedPlayer(String playerName, ClientPlayerEntity player) {
@@ -115,6 +151,14 @@ public class MessageBuilder {
         }
 
         return Colors.YELLOW;
+    }
+
+    static String formatPrice(double price) {
+        if (Math.abs(price - Math.rint(price)) < 0.005) {
+            return String.format(Locale.US, "%,.0f", price);
+        }
+
+        return String.format(Locale.US, "%,.2f", price);
     }
 
     static MutableText changelogHoverText(String changelog) {

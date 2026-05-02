@@ -1,6 +1,5 @@
-## 1.2.1
+## 1.2.2
 
-- Reworked the BIN purchase flow so `Buy Item Right Now` detection no longer depends on a fragile screen-title match and now uses the configured auction slot/button data consistently.
-- Overbidding now runs on the same BIN buy-click path as the blacklist warning, so both checks trigger together during the normal purchase flow.
-- Overbidding no longer blocks the purchase when the auction item or SkyBlock item id could not be read; it now only sends the existing chat error in those failure cases.
-- fixed Music Discs got not recognized by the Guard due to awkward Item IDs
+- Underbidding warnings now show the lowest possible price before MarketGuard blocks the action.
+- Overbidding warnings now show the highest possible price before MarketGuard blocks the action.
+- Fixed item name detection in `Create BIN Auction`, so warnings use the actual item name again instead of `AUCTION FOR ITEM:`.
