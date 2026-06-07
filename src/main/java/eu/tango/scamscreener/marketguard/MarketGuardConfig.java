@@ -8,7 +8,6 @@ import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
@@ -19,9 +18,13 @@ import java.nio.file.Path;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class MarketGuardConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public static final long DEFAULT_ABSOLUTE_THRESHOLD = 10_000L;
     @Getter
-    @Setter(AccessLevel.PACKAGE)
     private static boolean debugEnabled = false;
+    @Getter
+    private static long absoluteThreshold = DEFAULT_ABSOLUTE_THRESHOLD;
+    @Getter
+    private static boolean warnOnUnmatchedProfitConfirmations = false;
 
     public static void load() {
         load(configPath());
@@ -29,6 +32,22 @@ public final class MarketGuardConfig {
 
     public static boolean save() {
         return save(configPath());
+    }
+
+    public static void setDebugEnabled(boolean debugEnabled) {
+        MarketGuardConfig.debugEnabled = debugEnabled;
+    }
+
+    public static void setAbsoluteThreshold(long absoluteThreshold) {
+        if (absoluteThreshold < 0L) {
+            throw new IllegalArgumentException("absolute threshold must not be negative");
+        }
+
+        MarketGuardConfig.absoluteThreshold = absoluteThreshold;
+    }
+
+    public static void setWarnOnUnmatchedProfitConfirmations(boolean warnOnUnmatchedProfitConfirmations) {
+        MarketGuardConfig.warnOnUnmatchedProfitConfirmations = warnOnUnmatchedProfitConfirmations;
     }
 
     static void load(Path path) {
@@ -51,10 +70,16 @@ public final class MarketGuardConfig {
             int overbiddingThreshold = root.has("overbiddingThreshold")
                     ? root.get("overbiddingThreshold").getAsInt()
                     : AuctionOverbidding.getThreshold();
+            long configuredAbsoluteThreshold = root.has("absoluteThreshold")
+                    ? root.get("absoluteThreshold").getAsLong()
+                    : DEFAULT_ABSOLUTE_THRESHOLD;
             debugEnabled = root.has("debug") && root.get("debug").getAsBoolean();
+            warnOnUnmatchedProfitConfirmations = root.has("warnOnUnmatchedProfitConfirmations")
+                    && root.get("warnOnUnmatchedProfitConfirmations").getAsBoolean();
 
             AuctionUnderbidding.setThreshold(underbiddingThreshold);
             AuctionOverbidding.setThreshold(overbiddingThreshold);
+            setAbsoluteThreshold(configuredAbsoluteThreshold);
         } catch (Exception e) {
             MarketGuard.LOGGER.warn("Failed to load config from {}, keeping current thresholds", path, e);
             save(path);
@@ -65,7 +90,9 @@ public final class MarketGuardConfig {
         JsonObject root = new JsonObject();
         root.addProperty("underbiddingThreshold", AuctionUnderbidding.getThreshold());
         root.addProperty("overbiddingThreshold", AuctionOverbidding.getThreshold());
+        root.addProperty("absoluteThreshold", absoluteThreshold);
         root.addProperty("debug", debugEnabled);
+        root.addProperty("warnOnUnmatchedProfitConfirmations", warnOnUnmatchedProfitConfirmations);
 
         try {
             Path parent = path.getParent();

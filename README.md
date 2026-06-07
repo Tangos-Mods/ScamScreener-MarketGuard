@@ -45,6 +45,10 @@ You can adjust the protection thresholds directly in-game:
 
 - `/marketguard`
 - `/mg`
+- `/marketguard reset`
+- `/marketguard reload`
+- `/marketguard debug`
+- `/marketguard threshold <number>`
 - `/marketguard underbidding <0-100>`
 - `/marketguard overbidding <value 100 or higher>`
 
@@ -52,6 +56,10 @@ Examples:
 
 - `/marketguard underbidding 85` allows at most `15%` below `Lowest BIN`.
 - `/marketguard overbidding 130` allows at most `30%` above `Lowest BIN`.
+- `/marketguard reset` restores the default thresholds `80/120`.
+- `/marketguard reload` reloads the values from `config/scamscreener_marketguard/config.json`.
+- `/marketguard debug` toggles debug logging in the config file.
+- `/marketguard threshold 10000` requires at least `10,000` coins difference to block.
 
 Disabling protection:
 
@@ -59,6 +67,11 @@ Disabling protection:
 - `overbidding 100` disables overbidding protection.
 
 The values are stored in `config/scamscreener_marketguard/config.json`.
+
+MarketGuard only blocks when both conditions are met:
+
+- the configured percentage threshold is exceeded
+- the absolute coin difference to `Lowest BIN` is at least the configured threshold
 
 ## Important Notes
 

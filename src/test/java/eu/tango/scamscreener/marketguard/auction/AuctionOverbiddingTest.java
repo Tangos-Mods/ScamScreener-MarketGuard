@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.auction;
 
+import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,8 @@ import org.mockito.MockedStatic;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AuctionOverbiddingTest {
@@ -23,10 +26,10 @@ class AuctionOverbiddingTest {
         when(context.getAuctionItemId()).thenReturn("FANCY_LEGGINGS");
         when(context.getMc()).thenReturn(null);
 
-        try (MockedStatic<LowestBIN> lowestBin = mockStatic(LowestBIN.class)) {
+        try (MockedStatic<LowestBinData> lowestBin = mockStatic(LowestBinData.class)) {
             AuctionOverbidding.onInteract(context);
 
-            lowestBin.verify(() -> LowestBIN.checkBlacklistedAuctioneerAsyncIfNeeded("FANCY_LEGGINGS"));
+            lowestBin.verify(() -> LowestBinData.checkBlacklistedAuctioneerAsyncIfNeeded("FANCY_LEGGINGS"));
         }
     }
 
@@ -35,10 +38,11 @@ class AuctionOverbiddingTest {
         AuctionInteractEvent.Context context = mock(AuctionInteractEvent.Context.class);
         when(context.isBinView()).thenReturn(false);
 
-        try (MockedStatic<LowestBIN> lowestBin = mockStatic(LowestBIN.class)) {
+        try (MockedStatic<LowestBinData> lowestBin = mockStatic(LowestBinData.class)) {
             AuctionOverbidding.onInteract(context);
 
             lowestBin.verifyNoInteractions();
+            verify(context, never()).cancel();
         }
     }
 }

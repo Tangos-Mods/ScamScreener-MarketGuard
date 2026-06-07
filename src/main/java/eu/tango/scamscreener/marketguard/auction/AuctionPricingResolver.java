@@ -1,6 +1,7 @@
 package eu.tango.scamscreener.marketguard.auction;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -42,7 +43,7 @@ final class AuctionPricingResolver {
         MarketGuard.debug("Resolved SkyBlock item id='{}'", itemId);
         String displayName = SkyBlockItemUtil.getDisplayName(itemStack);
 
-        LowestBIN.LookupResult lookupResult = SkyBlockItemUtil.lookupLowestBin(itemId);
+        LowestBinData.LookupResult lookupResult = LowestBinData.lookupLowestBin(itemId);
         if (!lookupResult.hasValue()) {
             MarketGuard.debug(
                     "Pricing resolution skipped: no cached Lowest BIN is available for '{}' stale={} loading={} refreshFailed={}",

@@ -6,7 +6,9 @@ import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.underbidding;
 
 public final class AuctionUnderbidding {
-    private static int threshold = 80;
+    public static final int DEFAULT_THRESHOLD = 80;
+
+    private static int threshold = DEFAULT_THRESHOLD;
 
     private AuctionUnderbidding() {}
 
@@ -39,19 +41,20 @@ public final class AuctionUnderbidding {
         if (pricing == null) return;
 
         double minimumAllowedPrice = pricing.lowestBin() * getMinimumAllowedPercentage();
+        double absoluteDifference = pricing.lowestBin() - pricing.playerPrice();
         MarketGuard.debug(
-                "Underbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} minimumAllowedPrice={}",
+                "Underbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} minimumAllowedPrice={} absoluteDifference={} absoluteThreshold={}",
                 pricing.itemId(),
                 pricing.playerPrice(),
                 pricing.lowestBin(),
                 threshold,
-                minimumAllowedPrice
+                minimumAllowedPrice,
+                absoluteDifference,
+                eu.tango.scamscreener.marketguard.MarketGuardConfig.getAbsoluteThreshold()
         );
-        if (pricing.playerPrice() < minimumAllowedPrice) {
+        if (pricing.playerPrice() < minimumAllowedPrice && AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference)) {
             double underbidPercent = ((pricing.lowestBin() - pricing.playerPrice()) / pricing.lowestBin()) * 100.0;
-            context.cancel();
-            context.bypass(4);
-            MarketGuard.debug("Underbidding triggered itemId='{}' underbidPercent={}", pricing.itemId(), underbidPercent);
+            AuctionProtectionChecks.trigger(context, "Underbidding", "underbidPercent", pricing.itemId(), underbidPercent);
             underbidding(
                     pricing.itemId(),
                     pricing.displayName(),
@@ -64,6 +67,10 @@ public final class AuctionUnderbidding {
         }
 
         MarketGuard.debug("Underbidding check passed itemId='{}'", pricing.itemId());
+    }
+
+    static boolean exceedsAbsoluteThreshold(double absoluteDifference) {
+        return AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference);
     }
 
 }

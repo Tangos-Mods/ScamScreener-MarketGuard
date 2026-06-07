@@ -99,7 +99,14 @@ dependencies {
     testImplementation("org.mockito:mockito-core:5.17.0")
     modCompileOnly("maven.modrinth:scamscreener:$scamscreenerVersion")
 
-    fapi("fabric-lifecycle-events-v1", "fabric-resource-loader-v0", "fabric-content-registries-v0", "fabric-command-api-v2", "fabric-networking-api-v1")
+    fapi(
+        "fabric-lifecycle-events-v1",
+        "fabric-resource-loader-v0",
+        "fabric-content-registries-v0",
+        "fabric-command-api-v2",
+        "fabric-networking-api-v1",
+        "fabric-message-api-v1"
+    )
 }
 
 loom {

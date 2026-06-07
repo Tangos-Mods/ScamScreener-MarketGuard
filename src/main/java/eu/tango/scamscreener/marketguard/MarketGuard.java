@@ -5,8 +5,10 @@ import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import eu.tango.scamscreener.marketguard.command.MarketGuardCommand;
 import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
+import eu.tango.scamscreener.marketguard.profittracker.ProfitTracker;
 import eu.tango.scamscreener.marketguard.update.UpdateJoinNotifier;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +23,7 @@ public class MarketGuard implements ClientModInitializer {
         MarketGuardConfig.load();
         ScamScreenerBlacklistCompat.initialize();
         MarketGuardCommand.register();
+        ProfitTracker.initialize();
         UpdateJoinNotifier.initialize();
         registerListeners();
     }
@@ -30,6 +33,17 @@ public class MarketGuard implements ClientModInitializer {
         LOGGER.info("[MarketGuard][Debug] " + message, args);
     }
 
+    public static String currentVersion() {
+        return FabricLoader.getInstance()
+                .getModContainer(MOD_ID)
+                .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                .orElse("0.0.0");
+    }
+
+    public static String userAgent() {
+        return "MarketGuard/" + currentVersion();
+    }
+
     public static Identifier id(String namespace, String path) {
         return Identifier.of(namespace, path);
     }
@@ -37,5 +51,6 @@ public class MarketGuard implements ClientModInitializer {
     private void registerListeners() {
         AuctionInteractEvent.EVENT.register(AuctionUnderbidding::onInteract);
         AuctionInteractEvent.EVENT.register(AuctionOverbidding::onInteract);
+        AuctionInteractEvent.EVENT.register(ProfitTracker::onAuctionInteract);
     }
 }

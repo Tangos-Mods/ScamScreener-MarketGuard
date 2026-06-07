@@ -3,7 +3,8 @@ package eu.tango.scamscreener.marketguard.mixin;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.auction.AuctionInventory;
 import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
-import eu.tango.scamscreener.marketguard.auction.LowestBIN;
+import eu.tango.scamscreener.marketguard.data.LowestBinData;
+import eu.tango.scamscreener.marketguard.profittracker.ProfitTracker;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import net.minecraft.client.MinecraftClient;
@@ -41,9 +42,10 @@ public abstract class AuctionHouseMixin {
             clearBinPurchaseFlowState();
         }
 
-        LowestBIN.resetBlacklistNoticeState();
+        LowestBinData.resetBlacklistNoticeState();
         MarketGuard.debug("Auction screen opened title='{}', requesting Lowest BIN refresh if needed", title);
-        LowestBIN.refreshAsyncIfNeeded();
+        LowestBinData.refreshAsyncIfNeeded();
+        ProfitTracker.onHandledScreenInit(title);
         debugPurchaseFlowSlots(screen, title);
         if (shouldTriggerBlacklistCheckOnOpen(title)) {
             triggerBlacklistCheck(screen, title);
@@ -102,13 +104,16 @@ public abstract class AuctionHouseMixin {
         if (context.isCancelled()) {
             MarketGuard.debug("Click cancelled for title='{}' slotId={}", screenTitle, slotId);
             ci.cancel();
+            return;
         }
+
+        ProfitTracker.onHandledScreenClick(mc, screenTitle, sh, slot, slotId, actionType);
     }
 
     @Inject(method = "removed()V", at = @At("HEAD"))
     private void resetBypassOnScreenClose(CallbackInfo ci) {
         resetBypass();
-        LowestBIN.resetBlacklistNoticeState();
+        LowestBinData.resetBlacklistNoticeState();
     }
 
     @Inject(method = "render", at = @At("HEAD"))
@@ -136,7 +141,7 @@ public abstract class AuctionHouseMixin {
 
         marketguard$lastDeferredBlacklistCheckKey = checkKey;
         MarketGuard.debug("Deferred auction blacklist check requested title='{}' itemId='{}'", title, itemId);
-        LowestBIN.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
+        LowestBinData.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
     }
 
     private static void scheduleBypass(String title, int clicks) {
@@ -203,7 +208,7 @@ public abstract class AuctionHouseMixin {
         }
 
         MarketGuard.debug("Auction blacklist check requested title='{}' itemId='{}'", title, itemId);
-        LowestBIN.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
+        LowestBinData.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
     }
 
     private static String resolveAuctionItemId(HandledScreen<?> screen, String title) {

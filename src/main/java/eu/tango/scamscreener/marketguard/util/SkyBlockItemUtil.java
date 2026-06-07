@@ -2,7 +2,6 @@ package eu.tango.scamscreener.marketguard.util;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
-import eu.tango.scamscreener.marketguard.auction.LowestBIN;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.component.type.LoreComponent;
@@ -180,19 +179,5 @@ public class SkyBlockItemUtil {
     private static boolean isSkyBlockId(@Nullable String id) {
         return id != null && !id.isBlank() && !id.contains(":");
     }
-
-    public static Double fetchLowestBin(String itemId) {
-        try {
-            return LowestBIN.getLowestBIN(itemId);
-        } catch (Exception e) {
-            MarketGuard.LOGGER.error("Lowest BIN fetch failed for '{}': {}", itemId, e.getMessage(), e);
-            return null;
-        }
-    }
-
-    public static LowestBIN.LookupResult lookupLowestBin(String itemId) {
-        return LowestBIN.lookupLowestBIN(itemId);
-    }
-
 
 }

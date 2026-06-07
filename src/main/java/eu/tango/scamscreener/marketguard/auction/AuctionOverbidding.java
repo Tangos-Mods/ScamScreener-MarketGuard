@@ -1,13 +1,16 @@
 package eu.tango.scamscreener.marketguard.auction;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import net.minecraft.client.MinecraftClient;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.overbidding;
 
 public final class AuctionOverbidding {
-    private static int threshold = 120;
+    public static final int DEFAULT_THRESHOLD = 120;
+
+    private static int threshold = DEFAULT_THRESHOLD;
 
     private AuctionOverbidding() {}
 
@@ -36,7 +39,7 @@ public final class AuctionOverbidding {
 
         String itemId = context.getAuctionItemId();
         if (itemId != null) {
-            LowestBIN.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
+            LowestBinData.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
         }
 
         MinecraftClient mc = context.getMc();
@@ -47,19 +50,20 @@ public final class AuctionOverbidding {
         if (pricing == null) return;
 
         double maximumAllowedPrice = pricing.lowestBin() * getMaximumAllowedPercentage();
+        double absoluteDifference = pricing.playerPrice() - pricing.lowestBin();
         MarketGuard.debug(
-                "Overbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} maximumAllowedPrice={}",
+                "Overbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} maximumAllowedPrice={} absoluteDifference={} absoluteThreshold={}",
                 pricing.itemId(),
                 pricing.playerPrice(),
                 pricing.lowestBin(),
                 threshold,
-                maximumAllowedPrice
+                maximumAllowedPrice,
+                absoluteDifference,
+                eu.tango.scamscreener.marketguard.MarketGuardConfig.getAbsoluteThreshold()
         );
-        if (pricing.playerPrice() > maximumAllowedPrice) {
+        if (pricing.playerPrice() > maximumAllowedPrice && AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference)) {
             double overbidPercent = ((pricing.playerPrice() - pricing.lowestBin()) / pricing.lowestBin()) * 100.0;
-            context.cancel();
-            context.bypass(4);
-            MarketGuard.debug("Overbidding triggered itemId='{}' overbidPercent={}", pricing.itemId(), overbidPercent);
+            AuctionProtectionChecks.trigger(context, "Overbidding", "overbidPercent", pricing.itemId(), overbidPercent);
             overbidding(
                     pricing.itemId(),
                     pricing.displayName(),
@@ -72,5 +76,9 @@ public final class AuctionOverbidding {
         }
 
         MarketGuard.debug("Overbidding check passed itemId='{}'", pricing.itemId());
+    }
+
+    static boolean exceedsAbsoluteThreshold(double absoluteDifference) {
+        return AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference);
     }
 }

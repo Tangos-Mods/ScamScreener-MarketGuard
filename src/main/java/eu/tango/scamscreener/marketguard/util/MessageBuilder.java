@@ -40,18 +40,15 @@ public class MessageBuilder {
             double lowestPossiblePrice,
             int remainingClicks
     ) {
-        int color = resolveItemColor(itemId);
-
-        return PREFIX.copy()
-                .append(Text.literal("You are underbidding ").formatted(Formatting.GRAY))
-                .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
-                .append(Text.literal(" by ").formatted(Formatting.GRAY))
-                .append(Text.literal(String.format(Locale.US, "%.2f%%", underbidPercent)).withColor(Colors.YELLOW))
-                .append(Text.literal(". Lowest possible price is ").formatted(Formatting.GRAY))
-                .append(Text.literal(formatPrice(lowestPossiblePrice)).withColor(Colors.YELLOW))
-                .append(Text.literal(" (").formatted(Formatting.GRAY))
-                .append(Text.literal(String.valueOf(remainingClicks) + " clicks").formatted(Formatting.BOLD, Formatting.RED))
-                .append(Text.literal(" until bypass)").formatted(Formatting.GRAY));
+        return buildAuctionProtectionMessage(
+                "You are underbidding ",
+                ". Lowest possible price is ",
+                itemId,
+                itemDisplayName,
+                underbidPercent,
+                lowestPossiblePrice,
+                remainingClicks
+        );
     }
 
     public static void overbidding(
@@ -72,17 +69,37 @@ public class MessageBuilder {
             double highestPossiblePrice,
             int remainingClicks
     ) {
+        return buildAuctionProtectionMessage(
+                "You are overbidding ",
+                ". Highest possible price is ",
+                itemId,
+                itemDisplayName,
+                overbidPercent,
+                highestPossiblePrice,
+                remainingClicks
+        );
+    }
+
+    private static MutableText buildAuctionProtectionMessage(
+            String actionText,
+            String priceText,
+            String itemId,
+            String itemDisplayName,
+            double deviationPercent,
+            double limitPrice,
+            int remainingClicks
+    ) {
         int color = resolveItemColor(itemId);
 
         return PREFIX.copy()
-                .append(Text.literal("You are overbidding ").formatted(Formatting.GRAY))
+                .append(Text.literal(actionText).formatted(Formatting.GRAY))
                 .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
                 .append(Text.literal(" by ").formatted(Formatting.GRAY))
-                .append(Text.literal(String.format(Locale.US, "%.2f%%", overbidPercent)).withColor(Colors.YELLOW))
-                .append(Text.literal(". Highest possible price is ").formatted(Formatting.GRAY))
-                .append(Text.literal(formatPrice(highestPossiblePrice)).withColor(Colors.YELLOW))
+                .append(Text.literal(String.format(Locale.US, "%.2f%%", deviationPercent)).withColor(Colors.YELLOW))
+                .append(Text.literal(priceText).formatted(Formatting.GRAY))
+                .append(Text.literal(formatPrice(limitPrice)).withColor(Colors.YELLOW))
                 .append(Text.literal(" (").formatted(Formatting.GRAY))
-                .append(Text.literal(String.valueOf(remainingClicks) + " clicks").formatted(Formatting.BOLD, Formatting.RED))
+                .append(Text.literal(remainingClicks + " clicks").formatted(Formatting.BOLD, Formatting.RED))
                 .append(Text.literal(" until bypass)").formatted(Formatting.GRAY));
     }
 
