@@ -9,15 +9,15 @@ import eu.tango.scamscreener.marketguard.util.MessageBuilder;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -61,7 +61,7 @@ public final class ProfitTracker {
     }
 
     public static double getBazaarAllTimeProfit() {
-        String profileId = ProfileResolver.resolveCurrentProfileId(MinecraftClient.getInstance());
+        String profileId = ProfileResolver.resolveCurrentProfileId(Minecraft.getInstance());
         if (profileId == null) {
             return 0.0;
         }
@@ -69,7 +69,7 @@ public final class ProfitTracker {
     }
 
     public static double getAuctionHouseAllTimeProfit() {
-        String profileId = ProfileResolver.resolveCurrentProfileId(MinecraftClient.getInstance());
+        String profileId = ProfileResolver.resolveCurrentProfileId(Minecraft.getInstance());
         if (profileId == null) {
             return 0.0;
         }
@@ -119,17 +119,17 @@ public final class ProfitTracker {
     }
 
     public static void onHandledScreenClick(
-            MinecraftClient client,
+            Minecraft client,
             String title,
-            ScreenHandler screenHandler,
+            AbstractContainerMenu screenHandler,
             Slot slot,
             int slotId,
-            SlotActionType actionType
+            ContainerInput actionType
     ) {
         if (!BazaarInventory.matchesAny(title) || client == null) {
             return;
         }
-        if (actionType != SlotActionType.PICKUP || slot == null || slot.getStack().isEmpty()) {
+        if (actionType != ContainerInput.PICKUP || slot == null || slot.getItem().isEmpty()) {
             return;
         }
 
@@ -139,7 +139,7 @@ public final class ProfitTracker {
             return;
         }
 
-        BazaarClickCandidate candidate = parseBazaarClickCandidate(screenHandler, slot.getStack());
+        BazaarClickCandidate candidate = parseBazaarClickCandidate(screenHandler, slot.getItem());
         if (candidate == null) {
             return;
         }
@@ -295,7 +295,7 @@ public final class ProfitTracker {
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         String profileId = ProfileResolver.resolveCurrentProfileId(client);
         if (profileId == null) {
             return;
@@ -480,13 +480,13 @@ public final class ProfitTracker {
         return true;
     }
 
-    private static BazaarClickCandidate parseBazaarClickCandidate(ScreenHandler screenHandler, ItemStack clickedStack) {
-        BazaarTradeKind kind = BazaarSlots.resolveKind(clickedStack.getName().getString());
+    private static BazaarClickCandidate parseBazaarClickCandidate(AbstractContainerMenu screenHandler, ItemStack clickedStack) {
+        BazaarTradeKind kind = BazaarSlots.resolveKind(clickedStack.getHoverName().getString());
         if (kind == null || screenHandler == null || screenHandler.slots.size() <= BazaarSlots.ITEM_SLOT.slot()) {
             return null;
         }
 
-        ItemStack itemStack = screenHandler.getSlot(BazaarSlots.ITEM_SLOT.slot()).getStack();
+        ItemStack itemStack = screenHandler.getSlot(BazaarSlots.ITEM_SLOT.slot()).getItem();
         if (itemStack == null || itemStack.isEmpty()) {
             return null;
         }
@@ -559,13 +559,13 @@ public final class ProfitTracker {
     }
 
     private static List<String> getLoreLines(ItemStack stack) {
-        LoreComponent lore = stack.get(DataComponentTypes.LORE);
+        ItemLore lore = stack.get(DataComponents.LORE);
         if (lore == null) {
             return List.of();
         }
 
         List<String> result = new ArrayList<>();
-        for (Text line : lore.lines()) {
+        for (Component line : lore.lines()) {
             result.add(line.getString());
         }
         return result;
@@ -711,7 +711,7 @@ public final class ProfitTracker {
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return;
         }
@@ -721,11 +721,10 @@ public final class ProfitTracker {
                 return;
             }
 
-            client.player.sendMessage(
+            client.player.sendSystemMessage(
                     MessageBuilder.PREFIX.copy().append(
-                            Text.literal("Could not match a market confirmation for the profit tracker.").formatted(Formatting.YELLOW)
-                    ),
-                    false
+                            Component.literal("Could not match a market confirmation for the profit tracker.").withStyle(ChatFormatting.YELLOW)
+                    )
             );
         });
     }

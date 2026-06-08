@@ -7,13 +7,13 @@ import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.profittracker.ProfitTracker;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.ContainerInput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Mixin(HandledScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class AuctionHouseMixin {
     private static final AtomicInteger BYPASS_COUNTDOWN = new AtomicInteger();
     private static volatile String BYPASS_TITLE = null;
@@ -35,7 +35,7 @@ public abstract class AuctionHouseMixin {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void prefetchLowestBinOnAuctionScreens(CallbackInfo ci) {
-        HandledScreen<?> screen = (HandledScreen<?>)(Object)this;
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
         String title = screen.getTitle() != null ? screen.getTitle().getString() : null;
         if (!isAuctionScreen(title)) return;
         if (!isBinPurchaseFlowScreen(title)) {
@@ -53,21 +53,21 @@ public abstract class AuctionHouseMixin {
     }
 
     @Inject(
-            method = "onMouseClick(Lnet/minecraft/screen/slot/Slot;IILnet/minecraft/screen/slot/SlotActionType;)V",
+            method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V",
             at = @At("HEAD"),
             cancellable = true
     )
-    private void cancelClicksOnCustomInventories(Slot slot, int slotId, int button, SlotActionType actionType, CallbackInfo ci) {
+    private void cancelClicksOnCustomInventories(Slot slot, int slotId, int button, ContainerInput actionType, CallbackInfo ci) {
         if (slot == null) return;
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        String currentTitle = mc.currentScreen != null && mc.currentScreen.getTitle() != null
-                ? mc.currentScreen.getTitle().getString()
+        Minecraft mc = Minecraft.getInstance();
+        String currentTitle = mc.screen != null && mc.screen.getTitle() != null
+                ? mc.screen.getTitle().getString()
                 : null;
-        HandledScreen<?> screen = (HandledScreen<?>)(Object)this;
-        ScreenHandler sh = mc.player != null ? mc.player.currentScreenHandler : null;
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
+        AbstractContainerMenu sh = mc.player != null ? mc.player.containerMenu : null;
         AuctionInteractEvent.Context context = null;
-        if (mc.player != null && mc.currentScreen != null && mc.currentScreen.getTitle() != null && sh != null) {
+        if (mc.player != null && mc.screen != null && mc.screen.getTitle() != null && sh != null) {
             context = new AuctionInteractEvent.Context(
                     mc,
                     screen,
@@ -82,12 +82,12 @@ public abstract class AuctionHouseMixin {
         }
         if (isAuctionScreen(currentTitle)) {
             MarketGuard.debug(
-                    "HandledScreen click title='{}' slotId={} button={} actionType={} slotItem='{}' bypassRemaining={}",
+                    "AbstractContainerScreen click title='{}' slotId={} button={} actionType={} slotItem='{}' bypassRemaining={}",
                     currentTitle,
                     slotId,
                     button,
                     actionType,
-                    slot.getStack().isEmpty() ? "<empty>" : slot.getStack().getName().getString(),
+                    slot.getItem().isEmpty() ? "<empty>" : slot.getItem().getHoverName().getString(),
                     BYPASS_COUNTDOWN.get()
             );
             if (context != null && context.isBinView()) {
@@ -116,9 +116,9 @@ public abstract class AuctionHouseMixin {
         LowestBinData.resetBlacklistNoticeState();
     }
 
-    @Inject(method = "render", at = @At("HEAD"))
-    private void runDeferredAuctionBlacklistCheck(DrawContext context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
-        HandledScreen<?> screen = (HandledScreen<?>)(Object)this;
+    @Inject(method = "extractContents", at = @At("HEAD"))
+    private void runDeferredAuctionBlacklistCheck(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
         String title = screen.getTitle() != null ? screen.getTitle().getString() : null;
         if (!isAuctionScreen(title)) {
             return;
@@ -200,7 +200,7 @@ public abstract class AuctionHouseMixin {
         return AuctionInventory.matchesAny(title);
     }
 
-    private static void triggerBlacklistCheck(HandledScreen<?> screen, String title) {
+    private static void triggerBlacklistCheck(AbstractContainerScreen<?> screen, String title) {
         String itemId = resolveAuctionItemId(screen, title);
         if (itemId == null) {
             MarketGuard.debug("Auction blacklist check skipped title='{}' because no SkyBlock item id was available", title);
@@ -211,7 +211,7 @@ public abstract class AuctionHouseMixin {
         LowestBinData.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
     }
 
-    private static String resolveAuctionItemId(HandledScreen<?> screen, String title) {
+    private static String resolveAuctionItemId(AbstractContainerScreen<?> screen, String title) {
         String itemId = resolveAuctionItemId(screen);
         if (itemId != null) {
             if (isBinPurchaseFlowScreen(title)) {
@@ -239,17 +239,17 @@ public abstract class AuctionHouseMixin {
         return lastSeenBinItemId;
     }
 
-    private static String resolveAuctionItemId(HandledScreen<?> screen) {
-        if (screen == null || screen.getScreenHandler() == null) {
+    private static String resolveAuctionItemId(AbstractContainerScreen<?> screen) {
+        if (screen == null || screen.getMenu() == null) {
             return null;
         }
 
         int itemSlot = AuctionSlots.ITEM.getSlot();
-        if (screen.getScreenHandler().slots.size() <= itemSlot) {
+        if (screen.getMenu().slots.size() <= itemSlot) {
             return null;
         }
 
-        ItemStack itemStack = screen.getScreenHandler().getSlot(itemSlot).getStack();
+        ItemStack itemStack = screen.getMenu().getSlot(itemSlot).getItem();
         if (itemStack == null || itemStack.isEmpty()) {
             return null;
         }
@@ -257,11 +257,11 @@ public abstract class AuctionHouseMixin {
         return SkyBlockItemUtil.getSkyblockId(itemStack);
     }
 
-    private static void debugPurchaseFlowSlots(HandledScreen<?> screen, String title) {
+    private static void debugPurchaseFlowSlots(AbstractContainerScreen<?> screen, String title) {
         if (!isBinPurchaseFlowScreen(title)) {
             return;
         }
-        if (screen == null || screen.getScreenHandler() == null) {
+        if (screen == null || screen.getMenu() == null) {
             MarketGuard.debug("Auction slot dump skipped title='{}' because screen handler was missing", title);
             return;
         }
@@ -271,7 +271,7 @@ public abstract class AuctionHouseMixin {
                 "Auction slot dump title='{}' expectedBinViewItemSlot={} slotCount={}",
                 title,
                 expectedItemSlot,
-                screen.getScreenHandler().slots.size()
+                screen.getMenu().slots.size()
         );
 
         if (title.contains(AuctionInventory.BIN_VIEW.getTitle())) {
@@ -285,7 +285,7 @@ public abstract class AuctionHouseMixin {
             );
         }
 
-        int upperBound = Math.min(53, screen.getScreenHandler().slots.size() - 1);
+        int upperBound = Math.min(53, screen.getMenu().slots.size() - 1);
         for (int slotIndex = 0; slotIndex <= upperBound; slotIndex++) {
             String marker = slotIndex == expectedItemSlot ? " expectedItemSlot" : "";
             String itemName = readSlotItemName(screen, slotIndex);
@@ -301,14 +301,14 @@ public abstract class AuctionHouseMixin {
         }
     }
 
-    private static boolean hasAnyNonEmptyAuctionTopSlot(HandledScreen<?> screen) {
-        if (screen == null || screen.getScreenHandler() == null) {
+    private static boolean hasAnyNonEmptyAuctionTopSlot(AbstractContainerScreen<?> screen) {
+        if (screen == null || screen.getMenu() == null) {
             return false;
         }
 
-        int upperBound = Math.min(26, screen.getScreenHandler().slots.size() - 1);
+        int upperBound = Math.min(26, screen.getMenu().slots.size() - 1);
         for (int slotIndex = 0; slotIndex <= upperBound; slotIndex++) {
-            ItemStack stack = screen.getScreenHandler().getSlot(slotIndex).getStack();
+            ItemStack stack = screen.getMenu().getSlot(slotIndex).getItem();
             if (stack != null && !stack.isEmpty()) {
                 return true;
             }
@@ -316,25 +316,25 @@ public abstract class AuctionHouseMixin {
         return false;
     }
 
-    private static String readSlotItemName(HandledScreen<?> screen, int slotIndex) {
-        if (screen == null || screen.getScreenHandler() == null || screen.getScreenHandler().slots.size() <= slotIndex) {
+    private static String readSlotItemName(AbstractContainerScreen<?> screen, int slotIndex) {
+        if (screen == null || screen.getMenu() == null || screen.getMenu().slots.size() <= slotIndex) {
             return "<missing>";
         }
 
-        ItemStack stack = screen.getScreenHandler().getSlot(slotIndex).getStack();
+        ItemStack stack = screen.getMenu().getSlot(slotIndex).getItem();
         if (stack == null || stack.isEmpty()) {
             return "<empty>";
         }
 
-        return stack.getName().getString();
+        return stack.getHoverName().getString();
     }
 
-    private static String readSlotItemId(HandledScreen<?> screen, int slotIndex) {
-        if (screen == null || screen.getScreenHandler() == null || screen.getScreenHandler().slots.size() <= slotIndex) {
+    private static String readSlotItemId(AbstractContainerScreen<?> screen, int slotIndex) {
+        if (screen == null || screen.getMenu() == null || screen.getMenu().slots.size() <= slotIndex) {
             return null;
         }
 
-        ItemStack stack = screen.getScreenHandler().getSlot(slotIndex).getStack();
+        ItemStack stack = screen.getMenu().getSlot(slotIndex).getItem();
         if (stack == null || stack.isEmpty()) {
             return null;
         }

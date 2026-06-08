@@ -178,7 +178,7 @@ public final class ModrinthUpdateChecker {
         return FabricLoader.getInstance()
                 .getModContainer("minecraft")
                 .map(container -> container.getMetadata().getVersion().getFriendlyString())
-                .orElse("1.21.11");
+                .orElse("26.1.2");
     }
 
     private static String normalizeVersion(String value) {

@@ -4,10 +4,10 @@ import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.error;
 
@@ -16,27 +16,27 @@ final class AuctionPricingResolver {
 
     record PricingData(String itemId, String displayName, double lowestBin, double playerPrice) {}
 
-    static PricingData resolve(AuctionInteractEvent.Context context, ClientPlayerEntity player, boolean cancelOnFailure) {
+    static PricingData resolve(AuctionInteractEvent.Context context, LocalPlayer player, boolean cancelOnFailure) {
         ItemStack itemStack = context.getAuctionItemStack();
         MarketGuard.debug(
                 "Resolving pricing title='{}' clickedSlot={} actionType={} auctionItem='{}'",
                 context.getInventoryName(),
                 context.getSlotId(),
                 context.getActionType(),
-                itemStack.isEmpty() ? "<empty>" : itemStack.getName().getString()
+                itemStack.isEmpty() ? "<empty>" : itemStack.getHoverName().getString()
         );
         if (itemStack.isEmpty()) {
             MarketGuard.debug("Pricing resolution aborted: auction item stack was empty");
-            return abortPricing(context, player, Text.literal("Could not find Auction Item").formatted(Formatting.RED), cancelOnFailure);
+            return abortPricing(context, player, Component.literal("Could not find Auction Item").withStyle(ChatFormatting.RED), cancelOnFailure);
         }
 
         String itemId = SkyBlockItemUtil.getSkyblockId(itemStack);
         if (itemId == null) {
-            MarketGuard.debug("Pricing resolution aborted: no SkyBlock ID found for '{}'", itemStack.getName().getString());
+            MarketGuard.debug("Pricing resolution aborted: no SkyBlock ID found for '{}'", itemStack.getHoverName().getString());
             return abortPricing(
                     context,
                     player,
-                    Text.literal("Could not read Skyblock ID for ").append(itemStack.getName()).formatted(Formatting.RED),
+                    Component.literal("Could not read Skyblock ID for ").append(itemStack.getHoverName()).withStyle(ChatFormatting.RED),
                     cancelOnFailure
             );
         }
@@ -65,7 +65,7 @@ final class AuctionPricingResolver {
             return abortPricing(
                     context,
                     player,
-                    Text.literal("Lowest BIN is invalid for ").append(itemId).formatted(Formatting.RED),
+                    Component.literal("Lowest BIN is invalid for ").append(itemId).withStyle(ChatFormatting.RED),
                     cancelOnFailure
             );
         }
@@ -80,7 +80,7 @@ final class AuctionPricingResolver {
             return abortPricing(
                     context,
                     player,
-                    Text.literal("Failed to catch item price: " + e.getMessage()).formatted(Formatting.RED),
+                    Component.literal("Failed to catch item price: " + e.getMessage()).withStyle(ChatFormatting.RED),
                     cancelOnFailure
             );
         }
@@ -88,8 +88,8 @@ final class AuctionPricingResolver {
 
     private static PricingData abortPricing(
             AuctionInteractEvent.Context context,
-            ClientPlayerEntity player,
-            Text message,
+            LocalPlayer player,
+            Component message,
             boolean cancelOnFailure
     ) {
         if (cancelOnFailure) {

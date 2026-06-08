@@ -32,7 +32,7 @@ class ModrinthUpdateCheckerTest {
         String responseBody = """
                 [
                   {
-                    "version_number": "1.1.0+1.21.10",
+                    "version_number": "1.1.0+26.1.2",
                     "version_type": "release",
                     "date_published": "2026-04-01T10:15:30Z",
                     "status": "listed",
@@ -41,7 +41,7 @@ class ModrinthUpdateCheckerTest {
                 ]
                 """;
 
-        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.1.0+1.21.11");
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.1.0+26.1.2");
 
         assertNull(updateInfo);
     }
@@ -51,7 +51,7 @@ class ModrinthUpdateCheckerTest {
         String responseBody = """
                 [
                   {
-                    "version_number": "1.0.0-beta1+1.21.10",
+                    "version_number": "1.0.0-beta1+26.1.2",
                     "version_type": "release",
                     "date_published": "2026-04-01T10:15:30Z",
                     "status": "listed",
@@ -60,7 +60,7 @@ class ModrinthUpdateCheckerTest {
                 ]
                 """;
 
-        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.0.0-beta1+1.21.11");
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.0.0-beta1+26.1.2");
 
         assertNull(updateInfo);
     }
@@ -107,7 +107,7 @@ class ModrinthUpdateCheckerTest {
         String responseBody = """
                 [
                   {
-                    "version_number": "1.1.1+1.21.11",
+                    "version_number": "1.1.1+26.1.2",
                     "version_type": "release",
                     "date_published": "2026-04-02T10:15:30Z",
                     "status": "listed",
@@ -116,10 +116,10 @@ class ModrinthUpdateCheckerTest {
                 ]
                 """;
 
-        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.1.0+1.21.11");
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.1.0+26.1.2");
 
         assertNotNull(updateInfo);
-        assertEquals("1.1.0+1.21.11", updateInfo.currentVersion());
+        assertEquals("1.1.0+26.1.2", updateInfo.currentVersion());
         assertEquals("1.1.1", updateInfo.latestVersion());
     }
 }

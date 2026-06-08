@@ -2,11 +2,11 @@ package eu.tango.scamscreener.marketguard.util;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -23,10 +23,10 @@ public class SkyBlockItemUtil {
     public static String getSkyblockId(ItemStack itemStack) {
         if (itemStack == null || itemStack.isEmpty()) return null;
 
-        NbtComponent customData = itemStack.get(DataComponentTypes.CUSTOM_DATA);
+        CustomData customData = itemStack.get(DataComponents.CUSTOM_DATA);
         if (customData == null) return null;
 
-        NbtCompound nbt = customData.copyNbt();
+        CompoundTag nbt = customData.copyTag();
 
         String id = getSkyblockIdFromCompound(nbt.getCompound("minecraft:custom_data").orElse(null));
         if (isSkyBlockId(id)) return id;
@@ -43,7 +43,7 @@ public class SkyBlockItemUtil {
     public static double getPriceFromNBT(ItemStack item) throws Exception {
         if (item == null || item.isEmpty()) throw new Exception("Item cannot be empty");
 
-        String raw = item.getName().getString();
+        String raw = item.getHoverName().getString();
         MarketGuard.debug("Reading player price from slot item name='{}'", raw);
         Matcher m = Pattern.compile(AuctionSlots.ITEM_PRICE.getItemName()).matcher(raw);
         if (!m.find()) throw new Exception("Cannot read item price: " + raw);
@@ -58,12 +58,12 @@ public class SkyBlockItemUtil {
             return null;
         }
 
-        String displayName = itemStack.getName().getString();
-        LoreComponent lore = itemStack.get(DataComponentTypes.LORE);
+        String displayName = itemStack.getHoverName().getString();
+        ItemLore lore = itemStack.get(DataComponents.LORE);
         return resolveDisplayName(displayName, lore == null ? List.of() : lore.lines());
     }
 
-    static String resolveDisplayName(String displayName, List<net.minecraft.text.Text> loreLines) {
+    static String resolveDisplayName(String displayName, List<net.minecraft.network.chat.Component> loreLines) {
         if (displayName == null) {
             return null;
         }
@@ -79,7 +79,7 @@ public class SkyBlockItemUtil {
             }
         }
 
-        for (net.minecraft.text.Text line : loreLines) {
+        for (net.minecraft.network.chat.Component line : loreLines) {
             String value = line.getString().trim();
             if (!value.isBlank()) {
                 return value;
@@ -90,7 +90,7 @@ public class SkyBlockItemUtil {
     }
 
     @Nullable
-    private static String getSkyblockIdFromCompound(@Nullable NbtCompound compound) {
+    private static String getSkyblockIdFromCompound(@Nullable CompoundTag compound) {
         if (compound == null) return null;
         String id = compound.getString("id").orElse(null);
         if (id == null || id.isBlank()) return null;
@@ -106,11 +106,11 @@ public class SkyBlockItemUtil {
     }
 
     @Nullable
-    private static String getRuneSkyblockId(NbtCompound compound) {
-        NbtCompound runesCompound = compound.getCompound("runes").orElse(null);
+    private static String getRuneSkyblockId(CompoundTag compound) {
+        CompoundTag runesCompound = compound.getCompound("runes").orElse(null);
         if (runesCompound == null) return null;
 
-        for (String runeType : runesCompound.getKeys()) {
+        for (String runeType : runesCompound.keySet()) {
             if (runeType == null || runeType.isBlank()) continue;
 
             int runeLevel = runesCompound.getInt(runeType).orElse(0);
@@ -127,7 +127,7 @@ public class SkyBlockItemUtil {
     }
 
     @Nullable
-    private static String getPetSkyblockId(NbtCompound compound) {
+    private static String getPetSkyblockId(CompoundTag compound) {
         String petType = getPetType(compound);
         if (petType == null || petType.isBlank()) return null;
 
@@ -139,8 +139,8 @@ public class SkyBlockItemUtil {
     }
 
     @Nullable
-    private static String getPetType(NbtCompound compound) {
-        NbtCompound petInfoCompound = compound.getCompound("petInfo").orElse(null);
+    private static String getPetType(CompoundTag compound) {
+        CompoundTag petInfoCompound = compound.getCompound("petInfo").orElse(null);
         if (petInfoCompound != null) {
             String type = petInfoCompound.getString("type").orElse(null);
             if (type != null && !type.isBlank()) return type.toUpperCase(Locale.ROOT);
@@ -158,8 +158,8 @@ public class SkyBlockItemUtil {
     }
 
     @Nullable
-    private static String getPetTierName(NbtCompound compound) {
-        NbtCompound petInfoCompound = compound.getCompound("petInfo").orElse(null);
+    private static String getPetTierName(CompoundTag compound) {
+        CompoundTag petInfoCompound = compound.getCompound("petInfo").orElse(null);
         if (petInfoCompound != null) {
             String tier = petInfoCompound.getString("tier").orElse(null);
             if (tier != null && !tier.isBlank()) return tier;

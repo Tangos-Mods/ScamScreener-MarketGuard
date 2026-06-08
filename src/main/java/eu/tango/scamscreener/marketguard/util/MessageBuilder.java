@@ -1,25 +1,26 @@
 package eu.tango.scamscreener.marketguard.util;
 
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.util.Colors;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.net.URI;
 import java.util.Locale;
 
 public class MessageBuilder {
+    private static final int LIGHT_RED = 0xFF5555;
+    private static final int YELLOW = 0xFFFF55;
 
-    public static final Text PREFIX = Text.empty()
-            .append(Text.literal("[MarketGuard]").withColor(Colors.LIGHT_RED))
-            .append(Text.literal(" ").formatted(Formatting.GRAY));
+    public static final Component PREFIX = Component.empty()
+            .append(Component.literal("[MarketGuard]").withColor(LIGHT_RED))
+            .append(Component.literal(" ").withStyle(ChatFormatting.GRAY));
 
-    public static void error(Text error, ClientPlayerEntity player) {
-         player.sendMessage(PREFIX.copy().append(error), false);
+    public static void error(Component error, LocalPlayer player) {
+         player.sendSystemMessage(PREFIX.copy().append(error));
     }
 
     public static void underbidding(
@@ -28,12 +29,12 @@ public class MessageBuilder {
             double underbidPercent,
             double lowestPossiblePrice,
             int remainingClicks,
-            ClientPlayerEntity player
+            LocalPlayer player
     ) {
-        player.sendMessage(buildUnderbiddingMessage(itemId, itemDisplayName, underbidPercent, lowestPossiblePrice, remainingClicks), false);
+        player.sendSystemMessage(buildUnderbiddingMessage(itemId, itemDisplayName, underbidPercent, lowestPossiblePrice, remainingClicks));
     }
 
-    static MutableText buildUnderbiddingMessage(
+    static MutableComponent buildUnderbiddingMessage(
             String itemId,
             String itemDisplayName,
             double underbidPercent,
@@ -57,12 +58,12 @@ public class MessageBuilder {
             double overbidPercent,
             double highestPossiblePrice,
             int remainingClicks,
-            ClientPlayerEntity player
+            LocalPlayer player
     ) {
-        player.sendMessage(buildOverbiddingMessage(itemId, itemDisplayName, overbidPercent, highestPossiblePrice, remainingClicks), false);
+        player.sendSystemMessage(buildOverbiddingMessage(itemId, itemDisplayName, overbidPercent, highestPossiblePrice, remainingClicks));
     }
 
-    static MutableText buildOverbiddingMessage(
+    static MutableComponent buildOverbiddingMessage(
             String itemId,
             String itemDisplayName,
             double overbidPercent,
@@ -80,7 +81,7 @@ public class MessageBuilder {
         );
     }
 
-    private static MutableText buildAuctionProtectionMessage(
+    private static MutableComponent buildAuctionProtectionMessage(
             String actionText,
             String priceText,
             String itemId,
@@ -92,22 +93,21 @@ public class MessageBuilder {
         int color = resolveItemColor(itemId);
 
         return PREFIX.copy()
-                .append(Text.literal(actionText).formatted(Formatting.GRAY))
-                .append(Text.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
-                .append(Text.literal(" by ").formatted(Formatting.GRAY))
-                .append(Text.literal(String.format(Locale.US, "%.2f%%", deviationPercent)).withColor(Colors.YELLOW))
-                .append(Text.literal(priceText).formatted(Formatting.GRAY))
-                .append(Text.literal(formatPrice(limitPrice)).withColor(Colors.YELLOW))
-                .append(Text.literal(" (").formatted(Formatting.GRAY))
-                .append(Text.literal(remainingClicks + " clicks").formatted(Formatting.BOLD, Formatting.RED))
-                .append(Text.literal(" until bypass)").formatted(Formatting.GRAY));
+                .append(Component.literal(actionText).withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(resolveDisplayItemName(itemDisplayName, itemId)).withColor(color))
+                .append(Component.literal(" by ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(String.format(Locale.US, "%.2f%%", deviationPercent)).withColor(YELLOW))
+                .append(Component.literal(priceText).withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(formatPrice(limitPrice)).withColor(YELLOW))
+                .append(Component.literal(" (").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(remainingClicks + " clicks").withStyle(ChatFormatting.BOLD, ChatFormatting.RED))
+                .append(Component.literal(" until bypass)").withStyle(ChatFormatting.GRAY));
     }
 
-    public static void blacklistedPlayer(String playerName, ClientPlayerEntity player) {
+    public static void blacklistedPlayer(String playerName, LocalPlayer player) {
         String displayName = (playerName == null || playerName.isBlank()) ? "<unknown player>" : playerName;
-        player.sendMessage(
-                PREFIX.copy().append(Text.literal(displayName + " is listed in your blacklist! Be cautious!").formatted(Formatting.YELLOW)),
-                false
+        player.sendSystemMessage(
+                PREFIX.copy().append(Component.literal(displayName + " is listed in your blacklist! Be cautious!").withStyle(ChatFormatting.YELLOW))
         );
     }
 
@@ -126,15 +126,15 @@ public class MessageBuilder {
         return firstLetterUp(normalizedItemId);
     }
 
-    public static MutableText updateAvailable(String currentVersion, String latestVersion, String modrinthUrl, String changelog) {
+    public static MutableComponent updateAvailable(String currentVersion, String latestVersion, String modrinthUrl, String changelog) {
         return PREFIX.copy()
-                .append(Text.literal("Update available ").formatted(Formatting.GRAY))
-                .append(Text.literal(displayVersionOnly(currentVersion)).formatted(Formatting.YELLOW))
-                .append(Text.literal(" -> ").formatted(Formatting.DARK_GRAY))
-                .append(Text.literal(displayVersionOnly(latestVersion)).formatted(Formatting.GREEN, Formatting.BOLD))
-                .append(Text.literal(". ").formatted(Formatting.GRAY))
-                .append(urlActionTag("Click", Formatting.YELLOW, changelogHoverText(changelog), modrinthUrl))
-                .append(Text.literal(" to open on Modrinth.").formatted(Formatting.GRAY));
+                .append(Component.literal("Update available ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(displayVersionOnly(currentVersion)).withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(" -> ").withStyle(ChatFormatting.DARK_GRAY))
+                .append(Component.literal(displayVersionOnly(latestVersion)).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD))
+                .append(Component.literal(". ").withStyle(ChatFormatting.GRAY))
+                .append(urlActionTag("Click", ChatFormatting.YELLOW, changelogHoverText(changelog), modrinthUrl))
+                .append(Component.literal(" to open on Modrinth.").withStyle(ChatFormatting.GRAY));
     }
 
     private static String firstLetterUp(String s) {
@@ -155,7 +155,7 @@ public class MessageBuilder {
 
     private static int resolveItemColor(String itemId) {
         if (itemId == null || itemId.isBlank() || !itemId.contains(";")) {
-            return Colors.YELLOW;
+            return YELLOW;
         }
 
         String[] splitItemId = itemId.split(";", 2);
@@ -167,7 +167,7 @@ public class MessageBuilder {
         } catch (NumberFormatException ignored) {
         }
 
-        return Colors.YELLOW;
+        return YELLOW;
     }
 
     static String formatPrice(double price) {
@@ -178,7 +178,7 @@ public class MessageBuilder {
         return String.format(Locale.US, "%,.2f", price);
     }
 
-    static MutableText changelogHoverText(String changelog) {
+    static MutableComponent changelogHoverText(String changelog) {
         String normalized = changelog == null ? "" : changelog.replace("\r\n", "\n").replace('\r', '\n');
         String[] rawLines = normalized.split("\n", -1);
         int lineCount = rawLines.length;
@@ -187,26 +187,26 @@ public class MessageBuilder {
         }
 
         if (lineCount == 0) {
-            return Text.literal("No changelog available.").formatted(Formatting.DARK_GRAY, Formatting.ITALIC);
+            return Component.literal("No changelog available.").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC);
         }
 
-        MutableText hover = Text.literal("");
+        MutableComponent hover = Component.literal("");
         int previewLines = Math.min(10, lineCount);
         for (int index = 0; index < previewLines; index++) {
             if (index > 0) {
-                hover.append(Text.literal("\n"));
+                hover.append(Component.literal("\n"));
             }
-            hover.append(Text.literal(rawLines[index]).formatted(Formatting.GRAY));
+            hover.append(Component.literal(rawLines[index]).withStyle(ChatFormatting.GRAY));
         }
         if (lineCount > previewLines) {
-            hover.append(Text.literal("\n"));
-            hover.append(Text.literal("and more...").formatted(Formatting.DARK_GRAY, Formatting.ITALIC));
+            hover.append(Component.literal("\n"));
+            hover.append(Component.literal("and more...").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
         }
 
         return hover;
     }
 
-    private static MutableText urlActionTag(String label, Formatting color, Text hover, String url) {
+    private static MutableComponent urlActionTag(String label, ChatFormatting color, Component hover, String url) {
         Style style = Style.EMPTY.withColor(color);
         if (hover != null) {
             style = style.withHoverEvent(new HoverEvent.ShowText(hover));
@@ -217,7 +217,7 @@ public class MessageBuilder {
             style = style.withStrikethrough(true);
         }
 
-        return Text.literal("[" + label + "]").setStyle(style);
+        return Component.literal("[" + label + "]").setStyle(style);
     }
 
     private static String displayVersionOnly(String version) {

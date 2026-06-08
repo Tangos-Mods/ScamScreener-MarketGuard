@@ -1,11 +1,11 @@
 package eu.tango.scamscreener.marketguard.profittracker;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardEntry;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.PlayerScoreEntry;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,30 +19,30 @@ final class ProfileResolver {
 
     private ProfileResolver() {}
 
-    static String resolveCurrentProfileId(MinecraftClient client) {
-        if (client == null || client.world == null) {
+    static String resolveCurrentProfileId(Minecraft client) {
+        if (client == null || client.level == null) {
             return null;
         }
 
-        Scoreboard scoreboard = client.world.getScoreboard();
+        Scoreboard scoreboard = client.level.getScoreboard();
         if (scoreboard == null) {
             return null;
         }
 
-        ScoreboardObjective sidebar = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+        Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if (sidebar == null) {
             return null;
         }
 
-        List<ScoreboardEntry> entries = new ArrayList<>(scoreboard.getScoreboardEntries(sidebar));
-        entries.sort(Comparator.comparingInt(ScoreboardEntry::value).reversed());
+        List<PlayerScoreEntry> entries = new ArrayList<>(scoreboard.listPlayerScores(sidebar));
+        entries.sort(Comparator.comparingInt(PlayerScoreEntry::value).reversed());
 
-        for (ScoreboardEntry entry : entries) {
-            if (entry.hidden()) {
+        for (PlayerScoreEntry entry : entries) {
+            if (entry.isHidden()) {
                 continue;
             }
 
-            String profileId = extractProfile(entry.name());
+            String profileId = extractProfile(entry.ownerName());
             if (profileId == null && entry.display() != null) {
                 profileId = extractProfile(entry.display());
             }
@@ -54,7 +54,7 @@ final class ProfileResolver {
         return null;
     }
 
-    private static String extractProfile(Text text) {
+    private static String extractProfile(Component text) {
         if (text == null) {
             return null;
         }

@@ -1,7 +1,7 @@
 package eu.tango.scamscreener.marketguard.util;
 
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.text.Text;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -13,10 +13,10 @@ class SkyBlockItemUtilTest {
 
     @Test
     void getSkyblockIdFromCompoundBuildsRuneApiKey() throws Exception {
-        NbtCompound runes = new NbtCompound();
+        CompoundTag runes = new CompoundTag();
         runes.putInt("snow", 1);
 
-        NbtCompound extraAttributes = new NbtCompound();
+        CompoundTag extraAttributes = new CompoundTag();
         extraAttributes.putString("id", "RUNE");
         extraAttributes.put("runes", runes);
 
@@ -28,9 +28,9 @@ class SkyBlockItemUtilTest {
         assertEquals(
                 "Egg Pile",
                 SkyBlockItemUtil.resolveDisplayName("AUCTION FOR ITEM:", List.of(
-                Text.literal(""),
-                Text.literal("Egg Pile"),
-                Text.literal("Furniture")
+                Component.literal(""),
+                Component.literal("Egg Pile"),
+                Component.literal("Furniture")
         ))
         );
     }
@@ -40,8 +40,8 @@ class SkyBlockItemUtilTest {
         assertEquals("Fancy Leggings", SkyBlockItemUtil.resolveDisplayName("Fancy Leggings", List.of()));
     }
 
-    private static String getSkyblockIdFromCompound(NbtCompound compound) throws Exception {
-        Method method = SkyBlockItemUtil.class.getDeclaredMethod("getSkyblockIdFromCompound", NbtCompound.class);
+    private static String getSkyblockIdFromCompound(CompoundTag compound) throws Exception {
+        Method method = SkyBlockItemUtil.class.getDeclaredMethod("getSkyblockIdFromCompound", CompoundTag.class);
         method.setAccessible(true);
         return (String) method.invoke(null, compound);
     }

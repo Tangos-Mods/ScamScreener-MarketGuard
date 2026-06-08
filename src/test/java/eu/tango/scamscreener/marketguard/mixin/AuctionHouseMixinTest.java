@@ -56,7 +56,7 @@ class AuctionHouseMixinTest {
         } else if ("rememberLastSeenBinItemId".equals(methodName)) {
             method = AuctionHouseMixin.class.getDeclaredMethod(methodName, String.class);
         } else if ("resolveAuctionItemId".equals(methodName)) {
-            method = AuctionHouseMixin.class.getDeclaredMethod(methodName, net.minecraft.client.gui.screen.ingame.HandledScreen.class, String.class);
+            method = AuctionHouseMixin.class.getDeclaredMethod(methodName, net.minecraft.client.gui.screens.inventory.AbstractContainerScreen.class, String.class);
         } else {
             method = AuctionHouseMixin.class.getDeclaredMethod(methodName);
         }

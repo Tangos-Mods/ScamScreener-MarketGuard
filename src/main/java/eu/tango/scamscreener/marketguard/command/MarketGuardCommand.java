@@ -7,11 +7,11 @@ import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import eu.tango.scamscreener.marketguard.util.MessageBuilder;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import static com.mojang.brigadier.arguments.IntegerArgumentType.getInteger;
 import static com.mojang.brigadier.arguments.LongArgumentType.getLong;
@@ -22,25 +22,25 @@ public final class MarketGuardCommand {
 
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            var marketguard = dispatcher.register(ClientCommandManager.literal("marketguard")
+            var marketguard = dispatcher.register(ClientCommands.literal("marketguard")
                     .executes(context -> sendStatus(context.getSource()))
-                    .then(ClientCommandManager.literal("reset")
+                    .then(ClientCommands.literal("reset")
                             .executes(context -> reset(context.getSource())))
-                    .then(ClientCommandManager.literal("reload")
+                    .then(ClientCommands.literal("reload")
                             .executes(context -> reload(context.getSource())))
-                    .then(ClientCommandManager.literal("debug")
+                    .then(ClientCommands.literal("debug")
                             .executes(context -> toggleDebug(context.getSource())))
-                    .then(ClientCommandManager.literal("threshold")
-                            .then(ClientCommandManager.argument("value", LongArgumentType.longArg(0L))
+                    .then(ClientCommands.literal("threshold")
+                            .then(ClientCommands.argument("value", LongArgumentType.longArg(0L))
                                     .executes(context -> setAbsoluteThreshold(context, getLong(context, "value")))))
-                    .then(ClientCommandManager.literal("underbidding")
-                            .then(ClientCommandManager.argument("value", IntegerArgumentType.integer(0, 100))
+                    .then(ClientCommands.literal("underbidding")
+                            .then(ClientCommands.argument("value", IntegerArgumentType.integer(0, 100))
                                     .executes(context -> setUnderbidding(context, getInteger(context, "value")))))
-                    .then(ClientCommandManager.literal("overbidding")
-                            .then(ClientCommandManager.argument("value", IntegerArgumentType.integer(100))
+                    .then(ClientCommands.literal("overbidding")
+                            .then(ClientCommands.argument("value", IntegerArgumentType.integer(100))
                                     .executes(context -> setOverbidding(context, getInteger(context, "value"))))));
 
-            dispatcher.register(ClientCommandManager.literal("mg").redirect(marketguard));
+            dispatcher.register(ClientCommands.literal("mg").redirect(marketguard));
         });
     }
 
@@ -49,18 +49,18 @@ public final class MarketGuardCommand {
         AuctionUnderbidding.setThreshold(value);
         if (!MarketGuardConfig.save()) {
             AuctionUnderbidding.setThreshold(previousThreshold);
-            context.getSource().sendFeedback(message(Text.literal("Failed to save marketguard/config.json.").formatted(Formatting.RED)));
+            context.getSource().sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
             return 0;
         }
 
         if (value == 0 || value == 100) {
-            context.getSource().sendFeedback(message(Text.literal("Underbidding protection disabled.").formatted(Formatting.YELLOW)));
+            context.getSource().sendFeedback(message(Component.literal("Underbidding protection disabled.").withStyle(ChatFormatting.YELLOW)));
             return 1;
         }
 
-        context.getSource().sendFeedback(message(Text.literal(
+        context.getSource().sendFeedback(message(Component.literal(
                 "Underbidding threshold set to " + value + "% (max " + (100 - value) + "% under Lowest BIN)."
-        ).formatted(Formatting.GREEN)));
+        ).withStyle(ChatFormatting.GREEN)));
         return 1;
     }
 
@@ -69,28 +69,28 @@ public final class MarketGuardCommand {
         AuctionOverbidding.setThreshold(value);
         if (!MarketGuardConfig.save()) {
             AuctionOverbidding.setThreshold(previousThreshold);
-            context.getSource().sendFeedback(message(Text.literal("Failed to save marketguard/config.json.").formatted(Formatting.RED)));
+            context.getSource().sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
             return 0;
         }
 
         if (value == 100) {
-            context.getSource().sendFeedback(message(Text.literal("Overbidding protection disabled.").formatted(Formatting.YELLOW)));
+            context.getSource().sendFeedback(message(Component.literal("Overbidding protection disabled.").withStyle(ChatFormatting.YELLOW)));
             return 1;
         }
 
-        context.getSource().sendFeedback(message(Text.literal(
+        context.getSource().sendFeedback(message(Component.literal(
                 "Overbidding threshold set to " + value + "% (max " + (value - 100) + "% above Lowest BIN)."
-        ).formatted(Formatting.GREEN)));
+        ).withStyle(ChatFormatting.GREEN)));
         return 1;
     }
 
     private static int sendStatus(FabricClientCommandSource source) {
-        source.sendFeedback(message(Text.literal(
+        source.sendFeedback(message(Component.literal(
                 "Underbidding: " + formatUnderbiddingThreshold(AuctionUnderbidding.getThreshold())
                         + " | Overbidding: " + formatOverbiddingThreshold(AuctionOverbidding.getThreshold())
                         + " | Absolute threshold: " + formatPrice(MarketGuardConfig.getAbsoluteThreshold())
                         + " | Debug: " + (MarketGuardConfig.isDebugEnabled() ? "enabled" : "disabled")
-        ).formatted(Formatting.GRAY)));
+        ).withStyle(ChatFormatting.GRAY)));
         return 1;
     }
 
@@ -106,22 +106,22 @@ public final class MarketGuardCommand {
             AuctionUnderbidding.setThreshold(previousUnderbiddingThreshold);
             AuctionOverbidding.setThreshold(previousOverbiddingThreshold);
             MarketGuardConfig.setAbsoluteThreshold(previousAbsoluteThreshold);
-            source.sendFeedback(message(Text.literal("Failed to save marketguard/config.json.").formatted(Formatting.RED)));
+            source.sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
             return 0;
         }
 
-        source.sendFeedback(message(Text.literal(
+        source.sendFeedback(message(Component.literal(
                 "Thresholds reset to defaults. Underbidding: "
                         + formatUnderbiddingThreshold(AuctionUnderbidding.getThreshold())
                         + " | Overbidding: " + formatOverbiddingThreshold(AuctionOverbidding.getThreshold())
                         + " | Absolute threshold: " + formatPrice(MarketGuardConfig.getAbsoluteThreshold())
-        ).formatted(Formatting.GREEN)));
+        ).withStyle(ChatFormatting.GREEN)));
         return 1;
     }
 
     private static int reload(FabricClientCommandSource source) {
         MarketGuardConfig.load();
-        source.sendFeedback(message(Text.literal("Reloaded marketguard/config.json.").formatted(Formatting.GREEN)));
+        source.sendFeedback(message(Component.literal("Reloaded marketguard/config.json.").withStyle(ChatFormatting.GREEN)));
         return sendStatus(source);
     }
 
@@ -131,13 +131,13 @@ public final class MarketGuardCommand {
         MarketGuardConfig.setDebugEnabled(nextDebugEnabled);
         if (!MarketGuardConfig.save()) {
             MarketGuardConfig.setDebugEnabled(previousDebugEnabled);
-            source.sendFeedback(message(Text.literal("Failed to save marketguard/config.json.").formatted(Formatting.RED)));
+            source.sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
             return 0;
         }
 
-        source.sendFeedback(message(Text.literal(
+        source.sendFeedback(message(Component.literal(
                 "Debug logging " + (nextDebugEnabled ? "enabled" : "disabled") + "."
-        ).formatted(nextDebugEnabled ? Formatting.GREEN : Formatting.YELLOW)));
+        ).withStyle(nextDebugEnabled ? ChatFormatting.GREEN : ChatFormatting.YELLOW)));
         return 1;
     }
 
@@ -146,13 +146,13 @@ public final class MarketGuardCommand {
         MarketGuardConfig.setAbsoluteThreshold(value);
         if (!MarketGuardConfig.save()) {
             MarketGuardConfig.setAbsoluteThreshold(previousThreshold);
-            context.getSource().sendFeedback(message(Text.literal("Failed to save marketguard/config.json.").formatted(Formatting.RED)));
+            context.getSource().sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
             return 0;
         }
 
-        context.getSource().sendFeedback(message(Text.literal(
+        context.getSource().sendFeedback(message(Component.literal(
                 "Absolute threshold set to " + formatPrice(value) + " coins."
-        ).formatted(Formatting.GREEN)));
+        ).withStyle(ChatFormatting.GREEN)));
         return 1;
     }
 
@@ -172,7 +172,7 @@ public final class MarketGuardCommand {
         return threshold + "% (max " + (threshold - 100) + "% above Lowest BIN)";
     }
 
-    private static Text message(Text text) {
+    private static Component message(Component text) {
         return MessageBuilder.PREFIX.copy().append(text);
     }
 

@@ -1,6 +1,7 @@
 package eu.tango.scamscreener.marketguard.update;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.client.Minecraft;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.updateAvailable;
 
@@ -21,7 +22,7 @@ public final class UpdateJoinNotifier {
         );
     }
 
-    private static synchronized void notifyOnce(net.minecraft.client.MinecraftClient client, ModrinthUpdateChecker.UpdateInfo updateInfo) {
+    private static synchronized void notifyOnce(Minecraft client, ModrinthUpdateChecker.UpdateInfo updateInfo) {
         if (client.player == null || updateInfo == null || updateInfo.latestVersion() == null || updateInfo.latestVersion().isBlank()) {
             return;
         }
@@ -30,11 +31,11 @@ public final class UpdateJoinNotifier {
         }
 
         lastNotifiedVersion = updateInfo.latestVersion();
-        client.player.sendMessage(updateAvailable(
+        client.player.sendSystemMessage(updateAvailable(
                 updateInfo.currentVersion(),
                 updateInfo.latestVersion(),
                 updateInfo.modrinthUrl(),
                 updateInfo.changelog()
-        ), false);
+        ));
     }
 }

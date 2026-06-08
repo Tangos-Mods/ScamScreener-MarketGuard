@@ -7,12 +7,12 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.ContainerInput;
 
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
@@ -45,13 +45,13 @@ public final class AuctionInteractEvent {
     @Getter @RequiredArgsConstructor
     public static class Context {
 
-        private final MinecraftClient mc;
-        private final HandledScreen<?> screen;
-        private final ScreenHandler screenHandler;
+        private final Minecraft mc;
+        private final AbstractContainerScreen<?> screen;
+        private final AbstractContainerMenu screenHandler;
         private final Slot slot;
         private final int slotId;
         private final Integer button;
-        private final SlotActionType actionType;
+        private final ContainerInput actionType;
 
         private boolean cancelled = false;
         private final IntConsumer bypassScheduler;
@@ -69,8 +69,8 @@ public final class AuctionInteractEvent {
             return Math.max(0, bypassRemainingSupplier.getAsInt());
         }
 
-        public ItemStack getStack() {
-            return slot == null ? ItemStack.EMPTY : slot.getStack();
+        public ItemStack getItem() {
+            return slot == null ? ItemStack.EMPTY : slot.getItem();
         }
 
         public String getInventoryName() {
@@ -79,7 +79,7 @@ public final class AuctionInteractEvent {
 
         public ItemStack getAuctionItemStack() {
             int itemSlot = AuctionSlots.ITEM.getSlot();
-            return screenHandler.getSlot(itemSlot).getStack();
+            return screenHandler.getSlot(itemSlot).getItem();
         }
 
         public String getAuctionItemId() {
@@ -88,7 +88,7 @@ public final class AuctionInteractEvent {
 
         public double getPlayerPrice() throws Exception {
             int priceSlot = AuctionSlots.ITEM_PRICE.getSlot();
-            return SkyBlockItemUtil.getPriceFromNBT(screenHandler.getSlot(priceSlot).getStack());
+            return SkyBlockItemUtil.getPriceFromNBT(screenHandler.getSlot(priceSlot).getItem());
         }
 
         public boolean isCreateBinClick() {
@@ -98,7 +98,7 @@ public final class AuctionInteractEvent {
 
         public boolean isBinView() {
             return AuctionSlots.BUY_BIN_ITEM.matchesSlot(getSlotId())
-                    && AuctionSlots.BUY_BIN_ITEM.matchesStack(getStack());
+                    && AuctionSlots.BUY_BIN_ITEM.matchesStack(getItem());
         }
 
     }

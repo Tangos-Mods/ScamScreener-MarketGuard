@@ -2,8 +2,8 @@ package eu.tango.scamscreener.marketguard.auction;
 
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import eu.tango.scamscreener.marketguard.util.MessageBuilder;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
@@ -22,7 +22,7 @@ class AuctionPricingResolverTest {
     @Test
     void missingAuctionItemDoesNotCancelWhenFailureShouldNotBlock() {
         AuctionInteractEvent.Context context = mock(AuctionInteractEvent.Context.class);
-        ClientPlayerEntity player = null;
+        LocalPlayer player = null;
 
         try (MockedStatic<MessageBuilder> messageBuilder = mockStatic(MessageBuilder.class)) {
             assertNull(abortPricing(context, player, false));
@@ -35,7 +35,7 @@ class AuctionPricingResolverTest {
     @Test
     void missingAuctionItemCancelsWhenFailureShouldBlock() {
         AuctionInteractEvent.Context context = mock(AuctionInteractEvent.Context.class);
-        ClientPlayerEntity player = null;
+        LocalPlayer player = null;
 
         try (MockedStatic<MessageBuilder> messageBuilder = mockStatic(MessageBuilder.class)) {
             assertNull(abortPricing(context, player, true));
@@ -47,15 +47,15 @@ class AuctionPricingResolverTest {
 
     private static AuctionPricingResolver.PricingData abortPricing(
             AuctionInteractEvent.Context context,
-            ClientPlayerEntity player,
+            LocalPlayer player,
             boolean cancelOnFailure
     ) {
         try {
             Method method = AuctionPricingResolver.class.getDeclaredMethod(
                     "abortPricing",
                     AuctionInteractEvent.Context.class,
-                    ClientPlayerEntity.class,
-                    Text.class,
+                    LocalPlayer.class,
+                    Component.class,
                     boolean.class
             );
             method.setAccessible(true);
@@ -63,7 +63,7 @@ class AuctionPricingResolverTest {
                     null,
                     context,
                     player,
-                    Text.literal("Could not find Auction Item"),
+                    Component.literal("Could not find Auction Item"),
                     cancelOnFailure
             );
         } catch (ReflectiveOperationException e) {

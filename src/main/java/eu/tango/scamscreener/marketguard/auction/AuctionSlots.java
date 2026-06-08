@@ -2,7 +2,7 @@ package eu.tango.scamscreener.marketguard.auction;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.regex.Pattern;
 
@@ -35,7 +35,7 @@ public enum AuctionSlots {
             return false;
         }
 
-        return matchesName(stack.getName().getString());
+        return matchesName(stack.getHoverName().getString());
     }
 
 }

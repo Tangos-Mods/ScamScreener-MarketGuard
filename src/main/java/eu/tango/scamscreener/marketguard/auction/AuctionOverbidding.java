@@ -3,7 +3,7 @@ package eu.tango.scamscreener.marketguard.auction;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.overbidding;
 
@@ -42,7 +42,7 @@ public final class AuctionOverbidding {
             LowestBinData.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
         }
 
-        MinecraftClient mc = context.getMc();
+        Minecraft mc = context.getMc();
         if (mc == null || mc.player == null) return;
         if (!isEnabled()) return;
 

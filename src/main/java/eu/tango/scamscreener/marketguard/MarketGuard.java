@@ -9,7 +9,7 @@ import eu.tango.scamscreener.marketguard.profittracker.ProfitTracker;
 import eu.tango.scamscreener.marketguard.update.UpdateJoinNotifier;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +45,7 @@ public class MarketGuard implements ClientModInitializer {
     }
 
     public static Identifier id(String namespace, String path) {
-        return Identifier.of(namespace, path);
+        return Identifier.fromNamespaceAndPath(namespace, path);
     }
 
     private void registerListeners() {

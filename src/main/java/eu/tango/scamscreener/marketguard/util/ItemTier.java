@@ -2,18 +2,16 @@ package eu.tango.scamscreener.marketguard.util;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import net.minecraft.util.Colors;
-import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.Nullable;
 
 @Getter @RequiredArgsConstructor
 public enum ItemTier {
     
-    COMMON("Common", 1, Colors.WHITE),
-    RARE("Rare", 2, Colors.BLUE),
-    EPIC("Epic", 3, Colors.PURPLE),
-    LEGENDARY("Legendary", 4, Formatting.GOLD.getColorValue()),
-    MYTHIC("Mythic", 5, Colors.CYAN);
+    COMMON("Common", 1, 0xFFFFFF),
+    RARE("Rare", 2, 0x5555FF),
+    EPIC("Epic", 3, 0xFF55FF),
+    LEGENDARY("Legendary", 4, 0xFFAA00),
+    MYTHIC("Mythic", 5, 0x55FFFF);
 
 
     private final String tierName;

@@ -5,9 +5,9 @@ import com.google.gson.JsonParser;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
 import eu.tango.scamscreener.marketguard.util.MessageBuilder;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -242,7 +242,7 @@ public final class LowestBinData {
     }
 
     private static void notifyRefreshFailureOnce() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return;
         }
@@ -258,15 +258,15 @@ public final class LowestBinData {
             }
 
             MessageBuilder.error(
-                    Text.literal("Lowest BIN prices could not be refreshed. MarketGuard will not block AH actions because of missing API data.")
-                            .formatted(Formatting.YELLOW),
+                    Component.literal("Lowest BIN prices could not be refreshed. MarketGuard will not block AH actions because of missing API data.")
+                            .withStyle(ChatFormatting.YELLOW),
                     client.player
             );
         });
     }
 
     private static void notifyBlacklistedAuctioneer(String itemId, String playerName) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client == null) {
             return;
         }

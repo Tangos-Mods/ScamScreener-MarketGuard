@@ -1,5 +1,5 @@
 plugins {
-    id("net.fabricmc.fabric-loom-remap")
+    id("net.fabricmc.fabric-loom")
     id("me.modmuss50.mod-publish-plugin")
 }
 
@@ -50,12 +50,11 @@ val releaseNotes = rootProject.file("CHANGELOG.md")
     ?.takeIf(String::isNotEmpty)
     ?: "$modName $modVersion"
 
-val requiredJava = when {
-    sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
-    sc.current.parsed >= "1.18" -> JavaVersion.VERSION_17
-    sc.current.parsed >= "1.17" -> JavaVersion.VERSION_16
-    else -> JavaVersion.VERSION_1_8
-}
+val requiredJava = JavaVersion.VERSION_25
+val minecraftTitle = project.property("mod.mc_title") as String
+val targetMinecraftVersions = (project.property("mod.mc_targets") as String)
+    .split(Regex("\\s+"))
+    .filter(String::isNotBlank)
 
 val releaseType = try {
     me.modmuss50.mpp.ReleaseType.of(modType.uppercase())
@@ -77,36 +76,18 @@ repositories {
 }
 
 dependencies {
-    val scamscreenerVersion = "2.3.1+${sc.current.version}"
-
-    /**
-     * Fetches only the required Fabric API modules to not waste time downloading all of them for each version.
-     * @see <a href="https://github.com/FabricMC/fabric">List of Fabric API modules</a>
-     */
-    fun fapi(vararg modules: String) {
-        for (it in modules) modImplementation(fabricApi.module(it, property("deps.fabric_api") as String))
-    }
+    val scamscreenerVersion = "2.2.0+26.1"
 
     minecraft("com.mojang:minecraft:${sc.current.version}")
-    //mappings(loom.officialMojangMappings())
-    mappings("net.fabricmc:yarn:${property("deps.yarn_mappings")}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
+    implementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
+    implementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
     compileOnly("org.projectlombok:lombok:${property("deps.lombok")}")
     annotationProcessor("org.projectlombok:lombok:${property("deps.lombok")}")
     testImplementation(platform("org.junit:junit-bom:5.12.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.mockito:mockito-core:5.17.0")
-    modCompileOnly("maven.modrinth:scamscreener:$scamscreenerVersion")
-
-    fapi(
-        "fabric-lifecycle-events-v1",
-        "fabric-resource-loader-v0",
-        "fabric-content-registries-v0",
-        "fabric-command-api-v2",
-        "fabric-networking-api-v1",
-        "fabric-message-api-v1"
-    )
+    compileOnly("maven.modrinth:scamscreener:$scamscreenerVersion")
 }
 
 loom {
@@ -126,28 +107,29 @@ loom {
 
 java {
     withSourcesJar()
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
     targetCompatibility = requiredJava
     sourceCompatibility = requiredJava
 }
 
 publishMods {
-    file.set(tasks.remapJar.flatMap { it.archiveFile })
+    file.set(project.tasks.named("jar", org.gradle.jvm.tasks.Jar::class.java).flatMap { it.archiveFile })
     changelog.set(releaseNotes)
-    displayName.set("$modName $modVersion (${sc.current.version})")
+    displayName.set("$modName $modVersion ($minecraftTitle)")
     type.set(releaseType)
     modLoaders.add("fabric")
 
     modrinth {
         modrinthProjectId?.let(projectId::set)
         modrinthToken?.let(accessToken::set)
-        minecraftVersions.add(sc.current.version)
+        minecraftVersions.addAll(targetMinecraftVersions)
         requires("fabric-api")
     }
 
     curseforge {
         curseforgeProjectId?.let(projectId::set)
         curseforgeToken?.let(accessToken::set)
-        minecraftVersions.add(sc.current.version)
+        minecraftVersions.addAll(targetMinecraftVersions)
         javaVersions.add(requiredJava)
         requires("fabric-api")
     }
@@ -156,6 +138,7 @@ publishMods {
 tasks {
     withType<org.gradle.api.tasks.testing.Test>().configureEach {
         useJUnitPlatform()
+        jvmArgs("-Dnet.bytebuddy.experimental=true", "-XX:+EnableDynamicAgentLoading")
         testLogging {
             events(
                 org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED,
@@ -187,7 +170,10 @@ tasks {
     // Builds the version into a shared folder in `build/libs/${mod version}/`
     register<Copy>("buildAndCollect") {
         group = "build"
-        from(remapJar.map { it.archiveFile }, remapSourcesJar.map { it.archiveFile })
+        from(
+            project.tasks.named("jar", org.gradle.jvm.tasks.Jar::class.java).flatMap { it.archiveFile },
+            project.tasks.named("sourcesJar", org.gradle.jvm.tasks.Jar::class.java).flatMap { it.archiveFile }
+        )
         into(rootProject.layout.buildDirectory.file("libs/${project.property("mod.version")}"))
         dependsOn("build")
     }
