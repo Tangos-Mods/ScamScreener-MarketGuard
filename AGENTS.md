@@ -43,6 +43,11 @@ Bei jeder Änderung gilt:
 - HUD-, Render-, GUI- und Networking-Code soll funktional und minimal bleiben.
 - Kein künstliches Zerlegen kleiner Features in viele Dateien.
 
+## Tooling
+- Verwende für Gradle immer den lokalen Wrapper im Repository, also `./gradlew`, niemals ein global installiertes `gradle`.
+- Unter WSL soll Gradle mit einem lokalen `GRADLE_USER_HOME` im Repository laufen, z. B. `GRADLE_USER_HOME="$PWD/.gradle-user-home" ./gradlew ...`.
+- Dieses lokale `GRADLE_USER_HOME` im Repository immer wiederverwenden und nicht pro Lauf ein neues Cache-Verzeichnis anlegen.
+
 ## Bei Refactoring
 - Refactore nur bei echtem Nutzen:
     - bessere Lesbarkeit

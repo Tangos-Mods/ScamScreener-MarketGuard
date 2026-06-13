@@ -1,3 +1,3 @@
-## 1.2.4
+## 1.3.1
 
-- Port to 26.1.x
+- Fix mixin compatibility level expansion in packaged builds

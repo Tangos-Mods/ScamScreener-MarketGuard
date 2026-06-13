@@ -164,7 +164,7 @@ tasks {
         filesMatching("fabric.mod.json") { expand(props) }
 
         val mixinJava = "JAVA_${requiredJava.majorVersion}"
-        filesMatching("*.mixins.json") { expand("java" to mixinJava) }
+        filesMatching("mixins.marketguard.json") { expand("java" to mixinJava) }
     }
 
     // Builds the version into a shared folder in `build/libs/${mod version}/`
