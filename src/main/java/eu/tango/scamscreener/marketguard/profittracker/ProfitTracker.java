@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 
 public final class ProfitTracker {
     private static final Object LOCK = new Object();
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
     private static final Pattern COIN_PATTERN = Pattern.compile("([0-9]{1,3}(?:,[0-9]{3})*(?:\\.[0-9]+)?|[0-9]+(?:\\.[0-9]+)?)");
     private static final Pattern QUANTITY_PATTERN = Pattern.compile("([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)x\\s+(.+)");
     private static final Pattern PROFILED_BAZAAR_BUY = Pattern.compile("(?i)(?:\\[bazaar]\\s*)?bought\\s+([0-9,]+)x\\s+(.+?)\\s+for\\s+([0-9,]+(?:\\.[0-9]+)?)\\s+coins!?$");
@@ -301,7 +302,7 @@ public final class ProfitTracker {
             return;
         }
 
-        String message = rawMessage.replaceAll("\\s+", " ").trim();
+        String message = normalizeWhitespace(rawMessage);
         if (tryHandleAuctionPurchase(profileId, message)) {
             return;
         }
@@ -418,12 +419,13 @@ public final class ProfitTracker {
     }
 
     private static boolean tryHandleBazaarOrderCreationFromMessage(String profileId, String message) {
-        if (!message.toLowerCase(Locale.ROOT).contains("order") && !message.toLowerCase(Locale.ROOT).contains("offer")) {
+        String lowerMessage = message.toLowerCase(Locale.ROOT);
+        if (!lowerMessage.contains("order") && !lowerMessage.contains("offer")) {
             return false;
         }
-        if (!message.toLowerCase(Locale.ROOT).contains("created")
-                && !message.toLowerCase(Locale.ROOT).contains("setup")
-                && !message.toLowerCase(Locale.ROOT).contains("placed")) {
+        if (!lowerMessage.contains("created")
+                && !lowerMessage.contains("setup")
+                && !lowerMessage.contains("placed")) {
             return false;
         }
 
@@ -758,7 +760,11 @@ public final class ProfitTracker {
     }
 
     private static String normalizeName(String value) {
-        return value == null ? "" : value.replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
+        return normalizeWhitespace(value).toLowerCase(Locale.ROOT);
+    }
+
+    private static String normalizeWhitespace(String value) {
+        return value == null ? "" : WHITESPACE_PATTERN.matcher(value).replaceAll(" ").trim();
     }
 
     private record BazaarClickCandidate(

@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 
 final class ProfileResolver {
     private static final Pattern PROFILE_PATTERN = Pattern.compile("(?i)profile\\s*:?\\s*([A-Za-z0-9_ ]+)");
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
 
     private ProfileResolver() {}
 
@@ -64,7 +65,7 @@ final class ProfileResolver {
             return null;
         }
 
-        Matcher matcher = PROFILE_PATTERN.matcher(raw.replaceAll("\\s+", " ").trim());
+        Matcher matcher = PROFILE_PATTERN.matcher(WHITESPACE_PATTERN.matcher(raw).replaceAll(" ").trim());
         if (!matcher.find()) {
             return null;
         }

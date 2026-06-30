@@ -1,3 +1,3 @@
-## 1.3.1
+## 1.3.2
 
-- Fix mixin compatibility level expansion in packaged builds
+- Reduce repeated regex and string normalization work in auction, bazaar and profit-tracker hot paths

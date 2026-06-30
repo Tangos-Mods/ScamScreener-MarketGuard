@@ -1,12 +1,11 @@
 package eu.tango.scamscreener.marketguard.auction;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.regex.Pattern;
 
-@Getter @RequiredArgsConstructor
+@Getter
 public enum AuctionSlots {
 
     CREATE_BIN_CONFIRM("Confirm", 11),
@@ -17,6 +16,13 @@ public enum AuctionSlots {
 
     private final String itemName;
     private final int slot;
+    private final Pattern itemPattern;
+
+    AuctionSlots(String itemName, int slot) {
+        this.itemName = itemName;
+        this.slot = slot;
+        this.itemPattern = itemName == null ? null : Pattern.compile(itemName);
+    }
 
     public boolean matchesSlot(int slotId) {
         return slot == slotId;
@@ -27,7 +33,7 @@ public enum AuctionSlots {
             return false;
         }
 
-        return Pattern.compile(itemName).matcher(stackName).find();
+        return itemPattern.matcher(stackName).find();
     }
 
     public boolean matchesStack(ItemStack stack) {

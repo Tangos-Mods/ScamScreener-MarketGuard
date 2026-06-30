@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 public class SkyBlockItemUtil {
     private static final Pattern PET_TYPE_PATTERN = Pattern.compile("\"?type\"?\\s*:\\s*\"?([A-Za-z0-9_]+)\"?");
     private static final Pattern PET_TIER_PATTERN = Pattern.compile("\"?tier\"?\\s*:\\s*\"?([A-Za-z_]+)\"?");
+    private static final Pattern ITEM_PRICE_PATTERN = Pattern.compile(AuctionSlots.ITEM_PRICE.getItemName());
     private static final String AUCTION_FOR_ITEM_PLACEHOLDER = "AUCTION FOR ITEM:";
 
     @Nullable
@@ -45,7 +46,7 @@ public class SkyBlockItemUtil {
 
         String raw = item.getHoverName().getString();
         MarketGuard.debug("Reading player price from slot item name='{}'", raw);
-        Matcher m = Pattern.compile(AuctionSlots.ITEM_PRICE.getItemName()).matcher(raw);
+        Matcher m = ITEM_PRICE_PATTERN.matcher(raw);
         if (!m.find()) throw new Exception("Cannot read item price: " + raw);
         String matchedPrice = m.group();
         double parsedPrice = Double.parseDouble(matchedPrice.replaceAll("[^0-9,]", "").replace(",", ""));

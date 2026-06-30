@@ -1,11 +1,10 @@
 package eu.tango.scamscreener.marketguard.auction;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 import java.util.Locale;
 
-@Getter @RequiredArgsConstructor
+@Getter
 public enum AuctionInventory {
 
     MAIN("Auction House"),
@@ -17,26 +16,33 @@ public enum AuctionInventory {
     CONFIRM_PURCHASE("Confirm Purchase");
 
     private final String title;
+    private final String normalizedTitle;
+
+    AuctionInventory(String title) {
+        this.title = title;
+        this.normalizedTitle = normalize(title);
+    }
 
     public boolean matches(String screenTitle) {
-        if (screenTitle == null || screenTitle.isBlank()) {
-            return false;
-        }
-
-        return screenTitle.toLowerCase(Locale.ROOT).contains(title.toLowerCase(Locale.ROOT));
+        return normalize(screenTitle).contains(normalizedTitle);
     }
 
     public static boolean matchesAny(String screenTitle) {
-        if (screenTitle == null || screenTitle.isBlank()) {
+        String normalizedScreenTitle = normalize(screenTitle);
+        if (normalizedScreenTitle.isEmpty()) {
             return false;
         }
 
         for (AuctionInventory inventory : values()) {
-            if (inventory.matches(screenTitle)) {
+            if (normalizedScreenTitle.contains(inventory.normalizedTitle)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static String normalize(String value) {
+        return value == null || value.isBlank() ? "" : value.toLowerCase(Locale.ROOT);
     }
 }
 
