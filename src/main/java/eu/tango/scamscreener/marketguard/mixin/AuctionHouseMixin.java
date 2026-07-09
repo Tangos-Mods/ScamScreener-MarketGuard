@@ -61,13 +61,11 @@ public abstract class AuctionHouseMixin {
         if (slot == null) return;
 
         Minecraft mc = Minecraft.getInstance();
-        String currentTitle = mc.screen != null && mc.screen.getTitle() != null
-                ? mc.screen.getTitle().getString()
-                : null;
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
+        String currentTitle = screen.getTitle() != null ? screen.getTitle().getString() : null;
         AbstractContainerMenu sh = mc.player != null ? mc.player.containerMenu : null;
         AuctionInteractEvent.Context context = null;
-        if (mc.player != null && mc.screen != null && mc.screen.getTitle() != null && sh != null) {
+        if (mc.player != null && currentTitle != null && sh != null) {
             context = new AuctionInteractEvent.Context(
                     mc,
                     screen,

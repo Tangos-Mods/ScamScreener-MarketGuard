@@ -1,3 +1,3 @@
-## 1.3.2
+## 1.4.0
 
-- Reduce repeated regex and string normalization work in auction, bazaar and profit-tracker hot paths
+- Add support for Minecraft 26.2.x
