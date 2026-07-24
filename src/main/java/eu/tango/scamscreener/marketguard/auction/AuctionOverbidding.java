@@ -1,6 +1,7 @@
 package eu.tango.scamscreener.marketguard.auction;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import net.minecraft.client.Minecraft;
@@ -10,28 +11,22 @@ import static eu.tango.scamscreener.marketguard.util.MessageBuilder.overbidding;
 public final class AuctionOverbidding {
     public static final int DEFAULT_THRESHOLD = 120;
 
-    private static int threshold = DEFAULT_THRESHOLD;
-
     private AuctionOverbidding() {}
 
     public static int getThreshold() {
-        return threshold;
+        return MarketGuardConfig.getOverbiddingThreshold();
     }
 
     public static void setThreshold(int threshold) {
-        if (threshold < 100) {
-            throw new IllegalArgumentException("overbidding threshold must be at least 100");
-        }
-
-        AuctionOverbidding.threshold = threshold;
+        MarketGuardConfig.setOverbiddingThreshold(threshold);
     }
 
     public static boolean isEnabled() {
-        return threshold > 100;
+        return getThreshold() > 100;
     }
 
     public static double getMaximumAllowedPercentage() {
-        return threshold / 100.0;
+        return getThreshold() / 100.0;
     }
 
     public static void onInteract(AuctionInteractEvent.Context context) {
@@ -56,7 +51,7 @@ public final class AuctionOverbidding {
                 pricing.itemId(),
                 pricing.playerPrice(),
                 pricing.lowestBin(),
-                threshold,
+                getThreshold(),
                 maximumAllowedPrice,
                 absoluteDifference,
                 eu.tango.scamscreener.marketguard.MarketGuardConfig.getAbsoluteThreshold()

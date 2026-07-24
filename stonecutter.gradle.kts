@@ -30,6 +30,12 @@ tasks.register("publishAllUploads") {
     dependsOn("publishModrinthAll", "publishCurseforgeAll")
 }
 
+tasks.register("buildDevJars") {
+    group = "build"
+    description = "Builds local-API development JARs for every configured Stonecutter version."
+    dependsOn(stonecutter.tasks.named("devJar").map { it.values })
+}
+
 // See https://stonecutter.kikugie.dev/wiki/config/params
 stonecutter parameters {
     swaps["mod_version"] = "\"${property("mod.version")}\";"

@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 final class ProfitTrackerStore {
+    private static final int CURRENT_SCHEMA_VERSION = 5;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private ProfitTrackerStore() {}
@@ -32,6 +33,11 @@ final class ProfitTrackerStore {
             if (state.profiles == null) {
                 state.profiles = new java.util.LinkedHashMap<>();
             }
+            int loadedSchemaVersion = state.schemaVersion;
+            boolean needsProfitMigration = loadedSchemaVersion < 2;
+            boolean needsBazaarCashflowMigration = loadedSchemaVersion == 2;
+            boolean needsSchemaUpgrade = loadedSchemaVersion < CURRENT_SCHEMA_VERSION;
+            state.schemaVersion = CURRENT_SCHEMA_VERSION;
             for (ProfileProfitState profile : state.profiles.values()) {
                 if (profile.pendingBazaarOrders == null) {
                     profile.pendingBazaarOrders = new java.util.ArrayList<>();
@@ -39,6 +45,29 @@ final class ProfitTrackerStore {
                 if (profile.pendingAuctionListings == null) {
                     profile.pendingAuctionListings = new java.util.ArrayList<>();
                 }
+                if (profile.trackedBazaarPositions == null) {
+                    profile.trackedBazaarPositions = new java.util.ArrayList<>();
+                }
+                if (profile.trackedAuctionPositions == null) {
+                    profile.trackedAuctionPositions = new java.util.ArrayList<>();
+                }
+                if (needsProfitMigration) {
+                    profile.bazaarAllTimeProfit = 0.0;
+                    profile.auctionHouseAllTimeProfit = 0.0;
+                } else if (needsBazaarCashflowMigration) {
+                    for (TrackedBazaarPosition position : profile.trackedBazaarPositions) {
+                        profile.bazaarAllTimeProfit -= position.remainingCost;
+                    }
+                    for (PendingBazaarOrder order : profile.pendingBazaarOrders) {
+                        if (order.kind == BazaarTradeKind.BUY_ORDER) {
+                            profile.bazaarAllTimeProfit -= order.quotedTotalCoins;
+                            order.purchaseCostRecorded = true;
+                        }
+                    }
+                }
+            }
+            if (needsProfitMigration || needsBazaarCashflowMigration || needsSchemaUpgrade) {
+                save(path, state);
             }
             return state;
         } catch (Exception e) {
@@ -53,6 +82,7 @@ final class ProfitTrackerStore {
 
     static boolean save(Path path, ProfitTrackerState state) {
         try {
+            state.schemaVersion = CURRENT_SCHEMA_VERSION;
             Path parent = path.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);

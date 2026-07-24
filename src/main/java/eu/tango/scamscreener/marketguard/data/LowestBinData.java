@@ -2,6 +2,7 @@ package eu.tango.scamscreener.marketguard.data;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import eu.tango.scamscreener.marketguard.ApiEndpoint;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
 import eu.tango.scamscreener.marketguard.util.MessageBuilder;
@@ -17,7 +18,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public final class LowestBinData {
-    private static final String URL = "https://scamscreener.creepans.net/api/v2/lowestbin";
+    private static final String URL = ApiEndpoint.url("/api/v2/lowestbin");
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(8);
     private static final HttpClient CLIENT = HttpClient.newBuilder()
@@ -29,7 +30,11 @@ public final class LowestBinData {
 
     private LowestBinData() {}
 
-    public record LookupResult(Double value, boolean stale, boolean loading, boolean refreshFailed) {
+    public record LookupResult(Double value, Double average7d, boolean stale, boolean loading, boolean refreshFailed) {
+        public LookupResult(Double value, boolean stale, boolean loading, boolean refreshFailed) {
+            this(value, null, stale, loading, refreshFailed);
+        }
+
         public boolean hasValue() {
             return value != null;
         }
@@ -49,16 +54,19 @@ public final class LowestBinData {
     public static LookupResult lookupLowestBin(String itemId) {
         SnapshotCache.View cacheView = CACHE.view();
         Double value = readPrice(cacheView.snapshot(), itemId);
+        Double average7d = readAverage7d(cacheView.snapshot(), itemId);
 
-        if (value != null) {
+        if (value != null || average7d != null) {
             MarketGuard.debug(
-                    "Using {} Lowest BIN cache itemId='{}' loading={} refreshFailed={}",
+                    "Using {} Lowest BIN cache itemId='{}' lowestBin={} average7d={} loading={} refreshFailed={}",
                     cacheView.stale() ? "stale" : "fresh",
                     itemId,
+                    value,
+                    average7d,
                     cacheView.loading(),
                     cacheView.refreshFailed()
             );
-            return new LookupResult(value, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
+            return new LookupResult(value, average7d, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
         }
 
         MarketGuard.debug(
@@ -69,20 +77,22 @@ public final class LowestBinData {
                 cacheView.loading(),
                 cacheView.refreshFailed()
         );
-        return new LookupResult(null, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
+        return new LookupResult(null, null, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
     }
 
     public static String findItemIdByName(String displayName) {
         return SnapshotDataUtil.findItemIdByName(CACHE.cachedSnapshot(), displayName, LowestBinData::readItemName);
     }
 
-    public static void refreshAsyncIfNeeded() {
+    public static CompletableFuture<Void> refreshAsyncIfNeeded() {
         CACHE.refreshAsyncIfNeeded(
                 "Lowest BIN",
                 LowestBinData::fetchLowestBinSnapshotAsync,
                 LowestBinData::resetRefreshFailureNotice,
                 cause -> notifyRefreshFailureOnce()
         );
+        CompletableFuture<JsonObject> refresh = CACHE.refreshInFlight();
+        return refresh == null ? CompletableFuture.completedFuture(null) : refresh.handle((snapshot, throwable) -> null);
     }
 
     public static void checkBlacklistedAuctioneerAsyncIfNeeded(String itemId) {
@@ -177,6 +187,16 @@ public final class LowestBinData {
         }
 
         return product.get("price").getAsDouble();
+    }
+
+    private static Double readAverage7d(JsonObject snapshot, String itemId) {
+        JsonObject product = readProduct(snapshot, itemId);
+        if (product == null || !product.has("avg7d")) {
+            return null;
+        }
+
+        double average7d = product.get("avg7d").getAsDouble();
+        return Double.isFinite(average7d) && average7d > 0.0 ? average7d : null;
     }
 
     private static JsonObject readProduct(JsonObject snapshot, String itemId) {

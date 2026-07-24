@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 final class ProfitTrackerState {
+    int schemaVersion;
     Map<String, ProfileProfitState> profiles = new LinkedHashMap<>();
 
     ProfileProfitState getProfile(String profileId) {

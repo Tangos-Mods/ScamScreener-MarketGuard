@@ -1,110 +1,96 @@
 package eu.tango.scamscreener.marketguard;
 
+import eu.midnightdust.lib.config.MidnightConfig;
 import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.lang.reflect.Field;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarketGuardConfigTest {
 
     @AfterEach
     void resetDefaults() {
-        AuctionUnderbidding.setThreshold(80);
-        AuctionOverbidding.setThreshold(120);
+        MarketGuardConfig.setUnderbiddingThreshold(AuctionUnderbidding.DEFAULT_THRESHOLD);
+        MarketGuardConfig.setOverbiddingThreshold(AuctionOverbidding.DEFAULT_THRESHOLD);
         MarketGuardConfig.setAbsoluteThreshold(MarketGuardConfig.DEFAULT_ABSOLUTE_THRESHOLD);
         MarketGuardConfig.setDebugEnabled(false);
         MarketGuardConfig.setWarnOnUnmatchedProfitConfirmations(false);
+        MarketGuardConfig.setProfitTrackerHudEnabled(false);
+        MarketGuardConfig.setPlayerHudPreset("trade");
+        MarketGuardConfig.setPlayerHudShowUnavailableRows(false);
+        MarketGuardConfig.setShortNumberFormat(false);
     }
 
     @Test
-    void savesAndLoadsThresholds(@TempDir Path tempDir) throws Exception {
-        Path configPath = tempDir.resolve("marketguard").resolve("config.json");
+    void exposesEveryMarketGuardSettingToMidnightLib() throws Exception {
+        for (String name : List.of(
+                "underbiddingThreshold",
+                "overbiddingThreshold",
+                "absoluteThreshold",
+                "debug",
+                "warnOnUnmatchedProfitConfirmations",
+                "profitTrackerHudEnabled",
+                "playerHudPreset",
+                "playerHudShowUnavailableRows",
+                "shortNumberFormat"
+        )) {
+            Field field = MarketGuardConfig.class.getField(name);
+            assertTrue(field.isAnnotationPresent(MidnightConfig.Entry.class), name + " must be configurable");
+        }
+    }
 
-        AuctionUnderbidding.setThreshold(70);
-        AuctionOverbidding.setThreshold(140);
+    @Test
+    void protectionChecksUseTheMidnightLibBackedSettings() {
+        MarketGuardConfig.setUnderbiddingThreshold(70);
+        MarketGuardConfig.setOverbiddingThreshold(140);
         MarketGuardConfig.setAbsoluteThreshold(25_000L);
-        MarketGuardConfig.setWarnOnUnmatchedProfitConfirmations(true);
-        assertTrue(MarketGuardConfig.save(configPath));
-
-        String json = Files.readString(configPath);
-        assertTrue(json.contains("\"underbiddingThreshold\": 70"));
-        assertTrue(json.contains("\"overbiddingThreshold\": 140"));
-        assertTrue(json.contains("\"absoluteThreshold\": 25000"));
-        assertTrue(json.contains("\"debug\": false"));
-        assertTrue(json.contains("\"warnOnUnmatchedProfitConfirmations\": true"));
-
-        AuctionUnderbidding.setThreshold(80);
-        AuctionOverbidding.setThreshold(120);
-        MarketGuardConfig.setAbsoluteThreshold(MarketGuardConfig.DEFAULT_ABSOLUTE_THRESHOLD);
-        MarketGuardConfig.setDebugEnabled(true);
-        MarketGuardConfig.setWarnOnUnmatchedProfitConfirmations(false);
-
-        MarketGuardConfig.load(configPath);
 
         assertEquals(70, AuctionUnderbidding.getThreshold());
         assertEquals(140, AuctionOverbidding.getThreshold());
         assertEquals(25_000L, MarketGuardConfig.getAbsoluteThreshold());
-        assertEquals(false, MarketGuardConfig.isDebugEnabled());
-        assertEquals(true, MarketGuardConfig.isWarnOnUnmatchedProfitConfirmations());
     }
 
     @Test
-    void missingConfigWritesDefaults(@TempDir Path tempDir) throws Exception {
-        Path configPath = tempDir.resolve("marketguard").resolve("config.json");
-
-        MarketGuardConfig.load(configPath);
-
-        assertTrue(Files.exists(configPath));
-        assertTrue(Files.readString(configPath).contains("\"underbiddingThreshold\": 80"));
-        assertTrue(Files.readString(configPath).contains("\"overbiddingThreshold\": 120"));
-        assertTrue(Files.readString(configPath).contains("\"absoluteThreshold\": 10000"));
-        assertTrue(Files.readString(configPath).contains("\"debug\": false"));
-        assertTrue(Files.readString(configPath).contains("\"warnOnUnmatchedProfitConfirmations\": false"));
+    void playerHudPresetSupportsAllAndRejectsUnknownViews() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        assertEquals("all", MarketGuardConfig.getPlayerHudPreset());
+        assertThrows(IllegalArgumentException.class, () -> MarketGuardConfig.setPlayerHudPreset("unknown"));
     }
 
     @Test
-    void loadsDebugFlag(@TempDir Path tempDir) throws Exception {
-        Path configPath = tempDir.resolve("marketguard").resolve("config.json");
-        Files.createDirectories(configPath.getParent());
-        Files.writeString(configPath, """
-                {
-                  "underbiddingThreshold": 80,
-                  "overbiddingThreshold": 120,
-                  "absoluteThreshold": 10000,
-                  "debug": true,
-                  "warnOnUnmatchedProfitConfirmations": false
-                }
-                """);
+    void customHudButtonsUseNonNullMidnightMetadata() {
+        var entryInfo = MarketGuardConfig.hudEntryInfo();
 
-        MarketGuardConfig.load(configPath);
-
-        assertTrue(MarketGuardConfig.isDebugEnabled());
+        assertNotNull(entryInfo);
+        assertNull(entryInfo.field);
     }
 
     @Test
-    void loadsAbsoluteThreshold(@TempDir Path tempDir) throws Exception {
-        Path configPath = tempDir.resolve("marketguard").resolve("config.json");
-        Files.createDirectories(configPath.getParent());
-        Files.writeString(configPath, """
-                {
-                  "underbiddingThreshold": 80,
-                  "overbiddingThreshold": 120,
-                  "absoluteThreshold": 42000,
-                  "debug": false,
-                  "warnOnUnmatchedProfitConfirmations": true
-                }
-                """);
+    void customHudListsArePersistedButHiddenFromTheAutomaticMidnightUi() throws Exception {
+        for (String name : List.of(
+                "auctionPriceHudScreens", "playerHudScreens", "minionProfitHudScreens",
+                "forgeProfitHudScreens", "profitTrackerHudScreens", "auctionPriceHudRows",
+                "playerHudRows", "minionProfitHudRows", "forgeProfitHudRows", "profitTrackerHudRows"
+        )) {
+            Field field = MarketGuardConfig.class.getField(name);
+            assertTrue(field.isAnnotationPresent(MidnightConfig.Entry.class), name + " must be persisted");
+            assertTrue(field.isAnnotationPresent(MidnightConfig.Hidden.class), name + " must use the custom HUD editor only");
+        }
+    }
 
-        MarketGuardConfig.load(configPath);
+    @Test
+    void playerHudPresetIsManagedByTheCustomPlayerHudEditor() throws Exception {
+        Field field = MarketGuardConfig.class.getField("playerHudPreset");
 
-        assertEquals(42_000L, MarketGuardConfig.getAbsoluteThreshold());
-        assertTrue(MarketGuardConfig.isWarnOnUnmatchedProfitConfirmations());
+        assertTrue(field.isAnnotationPresent(MidnightConfig.Hidden.class));
     }
 }

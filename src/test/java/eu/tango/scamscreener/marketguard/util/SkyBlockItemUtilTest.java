@@ -40,6 +40,11 @@ class SkyBlockItemUtilTest {
         assertEquals("Fancy Leggings", SkyBlockItemUtil.resolveDisplayName("Fancy Leggings", List.of()));
     }
 
+    @Test
+    void parsesBuyItNowPriceFromBinAuctionLore() {
+        assertEquals(4_242_911_000D, SkyBlockItemUtil.parsePrice("Buy it now: 4,242,911,000 coins"));
+    }
+
     private static String getSkyblockIdFromCompound(CompoundTag compound) throws Exception {
         Method method = SkyBlockItemUtil.class.getDeclaredMethod("getSkyblockIdFromCompound", CompoundTag.class);
         method.setAccessible(true);

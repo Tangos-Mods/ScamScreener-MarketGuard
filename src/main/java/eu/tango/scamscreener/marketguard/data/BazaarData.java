@@ -2,6 +2,7 @@ package eu.tango.scamscreener.marketguard.data;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import eu.tango.scamscreener.marketguard.ApiEndpoint;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 
 import java.net.URI;
@@ -12,7 +13,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public final class BazaarData {
-    private static final String URL = "https://scamscreener.creepans.net/api/v1/bazaar";
+    private static final String URL = ApiEndpoint.url("/api/v1/bazaar");
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(8);
     private static final HttpClient CLIENT = HttpClient.newBuilder()
@@ -76,8 +77,10 @@ public final class BazaarData {
         return SnapshotDataUtil.findItemIdByName(CACHE.cachedSnapshot(), displayName, BazaarData::readItemName);
     }
 
-    public static void refreshAsyncIfNeeded() {
+    public static CompletableFuture<Void> refreshAsyncIfNeeded() {
         CACHE.refreshAsyncIfNeeded("Bazaar", BazaarData::fetchSnapshotAsync, null, null);
+        CompletableFuture<JsonObject> refresh = CACHE.refreshInFlight();
+        return refresh == null ? CompletableFuture.completedFuture(null) : refresh.handle((snapshot, throwable) -> null);
     }
 
     static JsonObject getSnapshot() throws Exception {

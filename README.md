@@ -1,5 +1,7 @@
 # ScamScreener MarketGuard
 
+> **Beta release:** Version 1.5.0-beta.1 is currently published as a beta release.
+
 `ScamScreener MarketGuard` is a client-side Fabric mod that protects you from expensive misclicks in the SkyBlock Auction House. It compares prices in relevant BIN auction screens against the current `Lowest BIN` and blocks risky clicks before you lose coins or accidentally list an item far too cheaply.
 
 ## What The Mod Does
@@ -8,6 +10,7 @@ MarketGuard currently steps in during two common risk situations:
 
 - When creating a `Create BIN Auction`, the mod checks whether your listed price is significantly below the `Lowest BIN`.
 - When opening a `Bin Auction View`, the mod checks whether the purchase price is significantly above the `Lowest BIN`.
+- In a `Bin Auction View`, the movable `Auction Price` HUD card shows the offered price, `Lowest BIN`, and their difference. It highlights offers at least 5% above `Lowest BIN` and especially cheap offers at least 20% below it.
 
 If a price falls outside your configured tolerance, the click is blocked and you receive a clear chat warning with the item name and percentage difference. That gives you an extra safety stop before an expensive mistake goes through.
 
@@ -51,6 +54,10 @@ You can adjust the protection thresholds directly in-game:
 - `/marketguard threshold <number>`
 - `/marketguard underbidding <0-100>`
 - `/marketguard overbidding <value 100 or higher>`
+- `/marketguard playerhud <Spielername-oder-UUID> [Profil-UUID]`
+- `/marketguard playerhud clear`
+- `/mg profit` (alias `/mg profittracker`)
+- `/mg numberformat` toggles financial HUD values between `1,000` and `1k` notation
 
 Examples:
 
@@ -60,13 +67,50 @@ Examples:
 - `/marketguard reload` reloads the values from `config/scamscreener_marketguard/config.json`.
 - `/marketguard debug` toggles debug logging in the config file.
 - `/marketguard threshold 10000` requires at least `10,000` coins difference to block.
+- `/marketguard playerhud Pankraz01` shows the selected SkyBlock profile in the movable `Trade Check` HUD card. Press `F8` to place visible MarketGuard HUDs, including while a container screen is open.
+- In `MarketGuard Settings > HUD > Player HUD > Edit > Layouts`, named layouts can be selected, edited, updated, deleted, copied as a share code, or imported from the clipboard.
+- The Player HUD includes an `All` preset and can optionally show unavailable rows as `n/a`.
+- `/mg profit` toggles the movable, persistent `Profit Tracker` HUD. Its `Profit Tracker Display` keybind is `NONE` by default and can be assigned in Minecraft's Controls menu.
+
+### Mod integration API
+
+Other client-side mods can reuse MarketGuard's already loaded market data without creating another request:
+
+```java
+import eu.tango.scamscreener.marketguard.api.MarketGuardApi;
+
+var lowestBin = MarketGuardApi.lookupCachedLowestBin("HYPERION");
+if (lowestBin.hasValue()) {
+    double price = lowestBin.value();
+}
+
+MarketGuardApi.requestLowestBin("HYPERION").thenAccept(latest -> {
+    if (latest.hasValue()) {
+        double price = latest.value();
+    }
+});
+```
+
+`lookupCachedLowestBin`, `lookupCachedBazaarProduct`, and `lookupCachedPlayer` are cache-only: they neither request data nor start a refresh. `requestLowestBin`, `requestBazaarProduct`, and `requestPlayer` use MarketGuard's shared request/cache path, so concurrent mods do not create duplicate API requests. `stale`, `loading`, and `refreshFailed` describe the cache state.
+
+### Local API development
+
+Build a development JAR that uses the local MarketGuard API instead of `scamscreener.creepans.net`:
+
+```bash
+GRADLE_USER_HOME="$PWD/.gradle-user-home" ./gradlew buildDevJars
+```
+
+The generated `-dev.jar` files use `http://localhost:8081` for Lowest BIN, Bazaar and player HUD requests. Start the API with `uvicorn app.marketguard_api.main:create_marketguard_app --factory --host 0.0.0.0 --port 8081`. A different base URL can be supplied through `-PdevApiBaseUrl=http://localhost:9090`.
+
+For an IntelliJ development client, use `Minecraft Client Dev (:26.1.2)` or `Minecraft Client Dev (:26.2)`. These configurations launch the project classes with `-Dmarketguard.apiBaseUrl=http://localhost:8081`, so they use the same local API without installing a JAR first.
 
 Disabling protection:
 
 - `underbidding 0` or `underbidding 100` disables underbidding protection.
 - `overbidding 100` disables overbidding protection.
 
-The values are stored in `config/scamscreener_marketguard/config.json`.
+The values are stored in `config/scamscreener_marketguard/config.json`. MidnightLib exposes the complete client configuration in Mod Menu when Mod Menu is installed.
 
 MarketGuard only blocks when both conditions are met:
 

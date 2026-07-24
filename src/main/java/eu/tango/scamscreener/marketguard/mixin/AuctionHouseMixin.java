@@ -4,7 +4,13 @@ import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.auction.AuctionInventory;
 import eu.tango.scamscreener.marketguard.auction.AuctionSlots;
 import eu.tango.scamscreener.marketguard.data.LowestBinData;
+import eu.tango.scamscreener.marketguard.hud.AuctionPriceHud;
+import eu.tango.scamscreener.marketguard.hud.ForgeProfitHud;
+import eu.tango.scamscreener.marketguard.hud.HudCustomization;
+import eu.tango.scamscreener.marketguard.hud.MinionProfitHud;
+import eu.tango.scamscreener.marketguard.hud.PlayerHud;
 import eu.tango.scamscreener.marketguard.profittracker.ProfitTracker;
+import eu.tango.scamscreener.marketguard.screen.HypixelScreens;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import net.minecraft.client.Minecraft;
@@ -32,12 +38,21 @@ public abstract class AuctionHouseMixin {
     private String marketguard$lastDeferredBlacklistCheckKey = null;
     @Unique
     private boolean marketguard$loggedFilledPurchaseFlowSlots = false;
+    @Unique
+    private boolean marketguard$playerHudShown = false;
+    @Unique
+    private String marketguard$auctionPriceWidgetKey = null;
 
     @Inject(method = "init", at = @At("TAIL"))
     private void prefetchLowestBinOnAuctionScreens(CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
         String title = screen.getTitle() != null ? screen.getTitle().getString() : null;
-        if (!isAuctionScreen(title)) return;
+        HudCustomization.setCurrentScreenTitle(title);
+        showPlayerHudIfAvailable(screen, title);
+        if (!isAuctionScreen(title)) {
+            MarketGuard.debug("Container screen opened title='{}'", title);
+            return;
+        }
         if (!isBinPurchaseFlowScreen(title)) {
             clearBinPurchaseFlowState();
         }
@@ -45,7 +60,6 @@ public abstract class AuctionHouseMixin {
         LowestBinData.resetBlacklistNoticeState();
         MarketGuard.debug("Auction screen opened title='{}', requesting Lowest BIN refresh if needed", title);
         LowestBinData.refreshAsyncIfNeeded();
-        ProfitTracker.onHandledScreenInit(title);
         debugPurchaseFlowSlots(screen, title);
         if (shouldTriggerBlacklistCheckOnOpen(title)) {
             triggerBlacklistCheck(screen, title);
@@ -110,14 +124,28 @@ public abstract class AuctionHouseMixin {
 
     @Inject(method = "removed()V", at = @At("HEAD"))
     private void resetBypassOnScreenClose(CallbackInfo ci) {
+        HudCustomization.setCurrentScreenTitle(null);
         resetBypass();
         LowestBinData.resetBlacklistNoticeState();
+        if (marketguard$playerHudShown) {
+            PlayerHud.clear();
+            marketguard$playerHudShown = false;
+        }
+        AuctionPriceHud.clear();
+        marketguard$auctionPriceWidgetKey = null;
+        MinionProfitHud.clear();
+        ForgeProfitHud.clear();
     }
 
     @Inject(method = "extractContents", at = @At("HEAD"))
     private void runDeferredAuctionBlacklistCheck(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
         String title = screen.getTitle() != null ? screen.getTitle().getString() : null;
+        HudCustomization.setCurrentScreenTitle(title);
+        showPlayerHudIfAvailable(screen, title);
+        updateAuctionPriceWidget(screen, title);
+        MinionProfitHud.update(screen.getMenu(), title);
+        ForgeProfitHud.update(screen.getMenu(), title);
         if (!isAuctionScreen(title)) {
             return;
         }
@@ -196,6 +224,67 @@ public abstract class AuctionHouseMixin {
 
     private static boolean isAuctionScreen(String title) {
         return AuctionInventory.matchesAny(title);
+    }
+
+    private void showPlayerHudIfAvailable(AbstractContainerScreen<?> screen, String title) {
+        if (marketguard$playerHudShown) {
+            return;
+        }
+
+        String player = HypixelScreens.profilePlayer(title);
+        String context = "profile";
+        if (player == null && HypixelScreens.isTrade(title)) {
+            player = HypixelScreens.tradePartner(title);
+            context = "trade";
+        }
+        if (player == null && AuctionInventory.BIN_VIEW.matches(title)) {
+            player = HypixelScreens.binSeller(screen.getMenu());
+            context = "bin";
+        }
+        if (player == null) {
+            return;
+        }
+
+        MarketGuard.debug("Player HUD opened context='{}' player='{}'", context, player);
+        marketguard$playerHudShown = true;
+        PlayerHud.show(player, null);
+    }
+
+    private void updateAuctionPriceWidget(AbstractContainerScreen<?> screen, String title) {
+        if (!AuctionInventory.BIN_VIEW.matches(title) || screen.getMenu() == null) {
+            AuctionPriceHud.clear();
+            marketguard$auctionPriceWidgetKey = null;
+            return;
+        }
+
+        int itemSlot = AuctionSlots.ITEM.getSlot();
+        if (screen.getMenu().slots.size() <= itemSlot) {
+            AuctionPriceHud.clear();
+            marketguard$auctionPriceWidgetKey = null;
+            return;
+        }
+
+        ItemStack auctionItem = screen.getMenu().getSlot(itemSlot).getItem();
+        String itemId = SkyBlockItemUtil.getSkyblockId(auctionItem);
+        if (itemId == null) {
+            AuctionPriceHud.clear();
+            marketguard$auctionPriceWidgetKey = null;
+            return;
+        }
+
+        String displayName = SkyBlockItemUtil.getDisplayName(auctionItem);
+        String widgetKey = itemId + "|" + displayName;
+        if (widgetKey.equals(marketguard$auctionPriceWidgetKey)) {
+            return;
+        }
+
+        try {
+            AuctionPriceHud.update(itemId, displayName, SkyBlockItemUtil.getPriceFromNBT(auctionItem));
+            marketguard$auctionPriceWidgetKey = widgetKey;
+        } catch (Exception ignored) {
+            AuctionPriceHud.clear();
+            marketguard$auctionPriceWidgetKey = null;
+        }
     }
 
     private static void triggerBlacklistCheck(AbstractContainerScreen<?> screen, String title) {

@@ -10,7 +10,8 @@ enum BazaarInventory {
     INSTANT_BUY("Instant Buy"),
     INSTANT_SELL("Instant Sell"),
     BUY_ORDER("Buy Order"),
-    SELL_OFFER("Sell Offer");
+    SELL_OFFER("Sell Offer"),
+    ORDERS("Bazaar Orders");
 
     private final String title;
     private final String normalizedTitle;

@@ -43,11 +43,16 @@ val modrinthToken = System.getenv("MODRINTH_TOKEN")?.trim()?.takeIf { it.isNotEm
     ?: dotenv["MODRINTH_TOKEN"]?.trim()?.takeIf { it.isNotEmpty() }
 val curseforgeToken = System.getenv("CURSEFORGE_TOKEN")?.trim()?.takeIf { it.isNotEmpty() }
     ?: dotenv["CURSEFORGE_TOKEN"]?.trim()?.takeIf { it.isNotEmpty() }
-val releaseNotes = rootProject.file("CHANGELOG.md")
+val releaseNotes = rootProject.file("MODRINTH.md")
     .takeIf(File::isFile)
     ?.readText()
     ?.trim()
     ?.takeIf(String::isNotEmpty)
+    ?: rootProject.file("CHANGELOG.md")
+        .takeIf(File::isFile)
+        ?.readText()
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
     ?: "$modName $modVersion"
 
 val requiredJava = JavaVersion.VERSION_25
@@ -55,6 +60,8 @@ val minecraftTitle = project.property("mod.mc_title") as String
 val targetMinecraftVersions = (project.property("mod.mc_targets") as String)
     .split(Regex("\\s+"))
     .filter(String::isNotBlank)
+val devApiBaseUrl = providers.gradleProperty("devApiBaseUrl").orElse("http://localhost:8081")
+val devApiProperties = layout.buildDirectory.file("generated/dev-api/marketguard-api.properties")
 
 val releaseType = try {
     me.modmuss50.mpp.ReleaseType.of(modType.uppercase())
@@ -63,6 +70,13 @@ val releaseType = try {
 }
 
 repositories {
+    mavenCentral()
+
+    flatDir {
+        name = "LocalTangosHudLib"
+        dirs(rootProject.file("../TangosHudLib/versions/${sc.current.version}/build/libs"))
+    }
+
     /**
      * Restricts dependency search of the given [groups] to the [maven URL][url],
      * improving the setup speed.
@@ -77,6 +91,20 @@ repositories {
 
 dependencies {
     val scamscreenerVersion = "2.2.0+26.1"
+    val localHudLibVersion = "1.2.0+${sc.current.version}"
+    val midnightLibVersion = when (sc.current.version) {
+        "26.1.2" -> "1.9.3+26.1-fabric"
+        "26.2" -> "1.9.3+26.2-fabric"
+        else -> throw GradleException("Unsupported MidnightLib target: ${sc.current.version}")
+    }
+    // TODO: Replace this temporary local Jar-in-Jar source with the HudLib Modrinth Maven dependency.
+    val localHudLibJar = rootProject.file(
+        "../TangosHudLib/versions/${sc.current.version}/build/libs/tangoshudlib-1.2.0+${sc.current.version}.jar"
+    )
+
+    if (!localHudLibJar.isFile) {
+        throw GradleException("Missing local Tango's HudLib build: ${localHudLibJar.path}")
+    }
 
     minecraft("com.mojang:minecraft:${sc.current.version}")
     implementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
@@ -88,6 +116,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.mockito:mockito-core:5.17.0")
     compileOnly("maven.modrinth:scamscreener:$scamscreenerVersion")
+    implementation("local.tango:tangoshudlib:$localHudLibVersion")
+    include("local.tango:tangoshudlib:$localHudLibVersion")
+    implementation("maven.modrinth:midnightlib:$midnightLibVersion")
+    include("maven.modrinth:midnightlib:$midnightLibVersion")
+    implementation("org.xerial:sqlite-jdbc:3.46.1.0")
+    include("org.xerial:sqlite-jdbc:3.46.1.0")
 }
 
 loom {
@@ -123,6 +157,8 @@ publishMods {
         modrinthProjectId?.let(projectId::set)
         modrinthToken?.let(accessToken::set)
         minecraftVersions.addAll(targetMinecraftVersions)
+        embeds("midnightlib")
+        embeds("dynamic-hudlib")
         requires("fabric-api")
     }
 
@@ -131,11 +167,41 @@ publishMods {
         curseforgeToken?.let(accessToken::set)
         minecraftVersions.addAll(targetMinecraftVersions)
         javaVersions.add(requiredJava)
+        clientRequired = true
+        serverRequired = false
+        embeds("midnightlib")
         requires("fabric-api")
     }
 }
 
 tasks {
+    val generateDevApiProperties = register<org.gradle.api.tasks.WriteProperties>("generateDevApiProperties") {
+        destinationFile.set(devApiProperties)
+        property("baseUrl", devApiBaseUrl.get())
+    }
+    val releaseJar = named<org.gradle.jvm.tasks.Jar>("jar")
+    val devManifest = layout.buildDirectory.file("generated/dev-manifest/META-INF/MANIFEST.MF")
+    val extractDevManifest = register<org.gradle.api.tasks.Copy>("extractDevManifest") {
+        dependsOn(releaseJar)
+        from(releaseJar.map { zipTree(it.archiveFile) }) {
+            include("META-INF/MANIFEST.MF")
+        }
+        into(layout.buildDirectory.dir("generated/dev-manifest"))
+    }
+
+    register<org.gradle.jvm.tasks.Jar>("devJar") {
+        group = "build"
+        description = "Builds an installable development JAR that uses the local MarketGuard API."
+
+        dependsOn(releaseJar, extractDevManifest, generateDevApiProperties)
+        archiveClassifier.set("dev")
+        from(releaseJar.map { zipTree(it.archiveFile) }) {
+            exclude("META-INF/MANIFEST.MF")
+        }
+        from(devApiProperties)
+        manifest.from(devManifest)
+    }
+
     withType<org.gradle.api.tasks.testing.Test>().configureEach {
         useJUnitPlatform()
         jvmArgs("-Dnet.bytebuddy.experimental=true", "-XX:+EnableDynamicAgentLoading")

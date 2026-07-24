@@ -17,7 +17,10 @@ import java.util.regex.Pattern;
 public class SkyBlockItemUtil {
     private static final Pattern PET_TYPE_PATTERN = Pattern.compile("\"?type\"?\\s*:\\s*\"?([A-Za-z0-9_]+)\"?");
     private static final Pattern PET_TIER_PATTERN = Pattern.compile("\"?tier\"?\\s*:\\s*\"?([A-Za-z_]+)\"?");
-    private static final Pattern ITEM_PRICE_PATTERN = Pattern.compile(AuctionSlots.ITEM_PRICE.getItemName());
+    private static final Pattern ITEM_PRICE_PATTERN = Pattern.compile(
+            "(?:Item price|Buy it now): (?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+) coins",
+            Pattern.CASE_INSENSITIVE
+    );
     private static final String AUCTION_FOR_ITEM_PLACEHOLDER = "AUCTION FOR ITEM:";
 
     @Nullable
@@ -46,9 +49,39 @@ public class SkyBlockItemUtil {
 
         String raw = item.getHoverName().getString();
         MarketGuard.debug("Reading player price from slot item name='{}'", raw);
-        Matcher m = ITEM_PRICE_PATTERN.matcher(raw);
-        if (!m.find()) throw new Exception("Cannot read item price: " + raw);
-        String matchedPrice = m.group();
+        Double price = priceFromText(raw);
+        if (price != null) {
+            return price;
+        }
+
+        ItemLore lore = item.get(DataComponents.LORE);
+        if (lore != null) {
+            for (net.minecraft.network.chat.Component line : lore.lines()) {
+                price = priceFromText(line.getString());
+                if (price != null) {
+                    return price;
+                }
+            }
+        }
+
+        throw new Exception("Cannot read item price: " + raw);
+    }
+
+    static double parsePrice(String raw) {
+        Double price = priceFromText(raw);
+        if (price == null) {
+            throw new IllegalArgumentException("Cannot read item price: " + raw);
+        }
+        return price;
+    }
+
+    private static Double priceFromText(String raw) {
+        Matcher matcher = ITEM_PRICE_PATTERN.matcher(raw);
+        if (!matcher.find()) {
+            return null;
+        }
+
+        String matchedPrice = matcher.group();
         double parsedPrice = Double.parseDouble(matchedPrice.replaceAll("[^0-9,]", "").replace(",", ""));
         MarketGuard.debug("Parsed player price rawMatch='{}' parsed={}", matchedPrice, parsedPrice);
         return parsedPrice;

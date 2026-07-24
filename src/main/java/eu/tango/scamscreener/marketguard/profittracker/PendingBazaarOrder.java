@@ -6,7 +6,9 @@ final class PendingBazaarOrder {
     String itemName;
     int quantity;
     double quotedTotalCoins;
-    double frozenUnitPrice;
+    boolean filled;
+    boolean purchaseCostRecorded;
+    boolean refundRecorded;
     long createdAtMs;
 
     PendingBazaarOrder() {}
@@ -17,7 +19,6 @@ final class PendingBazaarOrder {
             String itemName,
             int quantity,
             double quotedTotalCoins,
-            double frozenUnitPrice,
             long createdAtMs
     ) {
         this.kind = kind;
@@ -25,7 +26,6 @@ final class PendingBazaarOrder {
         this.itemName = itemName;
         this.quantity = quantity;
         this.quotedTotalCoins = quotedTotalCoins;
-        this.frozenUnitPrice = frozenUnitPrice;
         this.createdAtMs = createdAtMs;
     }
 }

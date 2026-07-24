@@ -1,6 +1,7 @@
 package eu.tango.scamscreener.marketguard.auction;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 
 import static eu.tango.scamscreener.marketguard.util.MessageBuilder.underbidding;
@@ -8,28 +9,22 @@ import static eu.tango.scamscreener.marketguard.util.MessageBuilder.underbidding
 public final class AuctionUnderbidding {
     public static final int DEFAULT_THRESHOLD = 80;
 
-    private static int threshold = DEFAULT_THRESHOLD;
-
     private AuctionUnderbidding() {}
 
     public static int getThreshold() {
-        return threshold;
+        return MarketGuardConfig.getUnderbiddingThreshold();
     }
 
     public static void setThreshold(int threshold) {
-        if (threshold < 0 || threshold > 100) {
-            throw new IllegalArgumentException("underbidding threshold must be between 0 and 100");
-        }
-
-        AuctionUnderbidding.threshold = threshold;
+        MarketGuardConfig.setUnderbiddingThreshold(threshold);
     }
 
     public static boolean isEnabled() {
-        return threshold > 0 && threshold < 100;
+        return getThreshold() > 0 && getThreshold() < 100;
     }
 
     public static double getMinimumAllowedPercentage() {
-        return threshold / 100.0;
+        return getThreshold() / 100.0;
     }
 
     public static void onInteract(AuctionInteractEvent.Context context) {
@@ -47,7 +42,7 @@ public final class AuctionUnderbidding {
                 pricing.itemId(),
                 pricing.playerPrice(),
                 pricing.lowestBin(),
-                threshold,
+                getThreshold(),
                 minimumAllowedPrice,
                 absoluteDifference,
                 eu.tango.scamscreener.marketguard.MarketGuardConfig.getAbsoluteThreshold()

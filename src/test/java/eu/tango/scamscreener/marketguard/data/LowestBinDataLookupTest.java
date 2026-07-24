@@ -23,7 +23,7 @@ class LowestBinDataLookupTest {
     @Test
     void returnsFreshCachedValue() throws Exception {
         JsonObject snapshot = new JsonObject();
-        snapshot.add("FANCY_LEGGINGS", product(123.0, "57ad19ca639f412daee5765f87874e35"));
+        snapshot.add("FANCY_LEGGINGS", product(123.0, 150.0, "57ad19ca639f412daee5765f87874e35"));
 
         LowestBinData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
         LowestBinData.cache().setLastRefreshAttemptAtMsForTests(System.currentTimeMillis());
@@ -37,6 +37,7 @@ class LowestBinDataLookupTest {
 
         assertTrue(result.hasValue());
         assertEquals(123.0, result.value());
+        assertEquals(150.0, result.average7d());
         assertFalse(result.stale());
         assertFalse(result.loading());
         assertFalse(result.refreshFailed());
@@ -45,7 +46,7 @@ class LowestBinDataLookupTest {
     @Test
     void returnsStaleValueAfterFailedRefresh() throws Exception {
         JsonObject snapshot = new JsonObject();
-        snapshot.add("FANCY_LEGGINGS", product(123.0, "57ad19ca639f412daee5765f87874e35"));
+        snapshot.add("FANCY_LEGGINGS", product(123.0, null, "57ad19ca639f412daee5765f87874e35"));
 
         LowestBinData.cache().setSnapshotForTests(snapshot, 0L);
         LowestBinData.cache().setLastRefreshAttemptFailedForTests(true);
@@ -68,7 +69,7 @@ class LowestBinDataLookupTest {
     @Test
     void returnsStaleCachedValueWhileRefreshIsStillPending() throws Exception {
         JsonObject snapshot = new JsonObject();
-        snapshot.add("FANCY_LEGGINGS", product(123.0, "57ad19ca639f412daee5765f87874e35"));
+        snapshot.add("FANCY_LEGGINGS", product(123.0, null, "57ad19ca639f412daee5765f87874e35"));
 
         LowestBinData.cache().setSnapshotForTests(snapshot, 0L);
         LowestBinData.cache().setRefreshInFlightForTests(new CompletableFuture<JsonObject>());
@@ -104,7 +105,7 @@ class LowestBinDataLookupTest {
     @Test
     void stillReturnsLowestBinWhenAuctioneerIsBlacklisted() throws Exception {
         JsonObject snapshot = new JsonObject();
-        snapshot.add("FANCY_LEGGINGS", product(123.0, "57ad19ca639f412daee5765f87874e35"));
+        snapshot.add("FANCY_LEGGINGS", product(123.0, null, "57ad19ca639f412daee5765f87874e35"));
 
         LowestBinData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
         LowestBinData.cache().setLastRefreshAttemptAtMsForTests(System.currentTimeMillis());
@@ -126,7 +127,7 @@ class LowestBinDataLookupTest {
     @Test
     void findItemIdByNameUsesNormalizedDisplayName() {
         JsonObject snapshot = new JsonObject();
-        JsonObject product = product(123.0, "57ad19ca639f412daee5765f87874e35");
+        JsonObject product = product(123.0, null, "57ad19ca639f412daee5765f87874e35");
         product.addProperty("item_name", "Fancy Leggings");
         snapshot.add("FANCY_LEGGINGS", product);
 
@@ -135,9 +136,12 @@ class LowestBinDataLookupTest {
         assertEquals("FANCY_LEGGINGS", LowestBinData.findItemIdByName(" fancy   leggings "));
     }
 
-    private static JsonObject product(double price, String auctioneerUuid) {
+    private static JsonObject product(double price, Double average7d, String auctioneerUuid) {
         JsonObject product = new JsonObject();
         product.addProperty("price", price);
+        if (average7d != null) {
+            product.addProperty("avg7d", average7d);
+        }
         product.addProperty("auctioneerUuid", auctioneerUuid);
         return product;
     }

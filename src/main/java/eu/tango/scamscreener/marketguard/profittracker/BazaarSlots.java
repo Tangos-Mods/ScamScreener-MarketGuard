@@ -4,6 +4,7 @@ import java.util.regex.Pattern;
 
 enum BazaarSlots {
     ITEM_SLOT(13),
+    CLAIM_ALL_COINS_SLOT(32),
     INSTANT_BUY_CONFIRM(Pattern.compile("(?i)(buy now|instant buy|buy instantly|confirm instant buy)")),
     INSTANT_SELL_CONFIRM(Pattern.compile("(?i)(sell now|instant sell|sell instantly|confirm instant sell)")),
     BUY_ORDER_CONFIRM(Pattern.compile("(?i)(create buy order|confirm buy order|place buy order)")),
@@ -44,5 +45,10 @@ enum BazaarSlots {
             return BazaarTradeKind.SELL_ORDER;
         }
         return null;
+    }
+
+    static boolean isClaimAllCoins(int slotId, String buttonName) {
+        return slotId == CLAIM_ALL_COINS_SLOT.slot && buttonName != null
+                && buttonName.toLowerCase(java.util.Locale.ROOT).contains("claim all coins");
     }
 }
