@@ -66,3 +66,6 @@ Bevorzuge:
 ## Ziel
 Der Code soll wirken, als hätte ihn ein erfahrener Modder pragmatisch und bewusst geschrieben.  
 Nicht wie ein generischer AI-Output.
+
+## Release Notes
+- `MODRINTH.md` enthält ausschließlich Änderungen mit erkennbarem Nutzen für Spieler. Rein technische Implementierungsdetails gehören nicht in die Modrinth-Beschreibung; sie werden in `CHANGELOG.md` dokumentiert.

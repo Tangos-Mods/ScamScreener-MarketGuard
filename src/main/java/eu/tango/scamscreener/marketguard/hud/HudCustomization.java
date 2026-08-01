@@ -298,7 +298,7 @@ public final class HudCustomization {
         return switch (MarketGuardConfig.getPlayerHudPreset()) {
             case "trade" -> List.of("title", "name", "status", "seen", "scamscreener");
             case "compact" -> List.of("title", "name", "status", "seen", "wealth", "scamscreener", "data", "unavailable");
-            case "profile" -> List.of("title", "name", "status", "seen", "first_join", "profile", "wealth", "armor", "equipment", "pet", "skills", "scamscreener", "data", "unavailable");
+            case "profile" -> List.of("title", "name", "status", "seen", "first_join", "profile", "wealth", "armor", "equipment", "pet", "skills", "uuid", "scamscreener", "data", "unavailable");
             case "all" -> defaultRows(hud);
             default -> defaultRows(hud);
         };

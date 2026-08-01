@@ -1,3 +1,15 @@
+## 1.5.0-beta.2
+
+## Fixed
+
+- Cache the Player HUD's ScamScreener blacklist lookup to avoid repeated render-time lookups and debug-log spam.
+- Parse chunked HTTP responses from the Player API correctly.
+- Keep the UUID row visible in the Player HUD's `profile` preset.
+
+## Changed
+
+- Player HUD requests without an explicit `profileId` now work with the API's selected-profile resolution.
+
 ## 1.5.0-beta.1
 
 - Calculate the Auction Price HUD difference against the API's 7-day average instead of Lowest BIN.
@@ -16,3 +28,7 @@
 - Align the custom HUD editor with MidnightLib's layout and hide duplicate raw list fields.
 - Split HUD settings into per-HUD editors with drag-and-drop row ordering.
 - Open the settings screen one tick after `/mg` or `/marketguard` so chat closing cannot immediately hide it.
+
+## 1.4.0
+
+- Add support for Minecraft 26.2.x

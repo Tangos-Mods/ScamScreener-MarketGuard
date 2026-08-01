@@ -2,20 +2,30 @@ package eu.tango.scamscreener.marketguard.hud;
 
 import com.google.gson.JsonObject;
 import eu.tango.scamscreener.marketguard.MarketGuardConfig;
+import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
 import eu.tango.tangosHudLib.api.HudContent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 
 class PlayerHudTest {
     @AfterEach
     void reset() {
         PlayerHud.resetForTests();
+        MarketGuardConfig.setPlayerHudPreset("trade");
+        MarketGuardConfig.playerHudRows = new ArrayList<>(List.of(
+                "title", "name", "status", "seen", "first_join", "profile", "wealth",
+                "armor", "equipment", "pet", "skills", "uuid", "scamscreener", "data", "unavailable"
+        ));
     }
 
     @Test
@@ -55,6 +65,8 @@ class PlayerHudTest {
 
     @Test
     void rendersAvailableFieldsEvenWhenPlayerStatusIsUnavailable() {
+        MarketGuardConfig.setPlayerHudPreset("profile");
+        PlayerHud.setPreset("profile");
         PlayerHud.setPreset("profile");
         JsonObject player = new JsonObject();
         player.addProperty("status", "unavailable");
@@ -82,6 +94,7 @@ class PlayerHudTest {
 
     @Test
     void requestFailureStillShowsTheKnownTargetName() {
+        MarketGuardConfig.setPlayerHudPreset("all");
         List<String> lines = PlayerHud.errorContent(new PlayerHud.Target("Pankraz01", null))
                 .lines().stream().map(line -> line.getString()).toList();
 
@@ -93,7 +106,22 @@ class PlayerHudTest {
     }
 
     @Test
+    void requestFailureCachesTheBlacklistLookupWhileRendering() {
+        String uuid = "fd9347ca546f4a4c89239665caa0385c";
+        try (MockedStatic<ScamScreenerBlacklistCompat> blacklist = mockStatic(ScamScreenerBlacklistCompat.class)) {
+            blacklist.when(() -> ScamScreenerBlacklistCompat.findBlacklistedPlayerName(uuid)).thenReturn(null);
+
+            PlayerHud.Target target = new PlayerHud.Target(uuid, null);
+            PlayerHud.errorContent(target);
+            PlayerHud.errorContent(target);
+
+            blacklist.verify(() -> ScamScreenerBlacklistCompat.findBlacklistedPlayerName(uuid), times(1));
+        }
+    }
+
+    @Test
     void requestFailureShowsUnavailableRowsWhenEnabled() {
+        MarketGuardConfig.setPlayerHudPreset("all");
         PlayerHud.setPreset("all");
         MarketGuardConfig.setPlayerHudShowUnavailableRows(true);
 
@@ -108,6 +136,7 @@ class PlayerHudTest {
 
     @Test
     void allPresetShowsEveryAvailablePlayerGroup() {
+        MarketGuardConfig.setPlayerHudPreset("all");
         PlayerHud.setPreset("all");
         JsonObject player = new JsonObject();
         player.addProperty("status", "ok");
@@ -145,6 +174,7 @@ class PlayerHudTest {
 
     @Test
     void unavailableRowsCanBeShownAsNaInsteadOfBeingHidden() {
+        MarketGuardConfig.setPlayerHudPreset("all");
         PlayerHud.setPreset("all");
         MarketGuardConfig.setPlayerHudShowUnavailableRows(true);
         JsonObject player = new JsonObject();

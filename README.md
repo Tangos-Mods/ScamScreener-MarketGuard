@@ -1,6 +1,8 @@
 # ScamScreener MarketGuard
 
-> **Beta release:** Version 1.5.0-beta.1 is currently published as a beta release.
+> **Beta release:** Version 1.5.0-beta.2 is currently published as a beta release.
+
+Beta 2 fixes Player HUD requests through HTTP/1.1 proxies by decoding chunked Player API responses correctly. It also caches failed ScamScreener blacklist lookups to avoid repeated console output.
 
 `ScamScreener MarketGuard` is a client-side Fabric mod that protects you from expensive misclicks in the SkyBlock Auction House. It compares prices in relevant BIN auction screens against the current `Lowest BIN` and blocks risky clicks before you lose coins or accidentally list an item far too cheaply.
 

@@ -127,6 +127,16 @@ class PlayerHudApiTest {
         assertEquals("Pankraz01", response.player().get("name").getAsString());
     }
 
+    @Test
+    void decodesChunkedPlayerResponses() {
+        PlayerHud.PlayerResponse response = PlayerHud.parsePlayerResponse(
+                "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+                        + "40\r\n{\"status\":\"ok\",\"players\":[{\"status\":\"partial\",\"name\":\"Pan_05\"}]}\r\n0\r\n\r\n"
+        );
+
+        assertEquals("Pan_05", response.player().get("name").getAsString());
+    }
+
     private static JsonObject player(String name) {
         JsonObject player = new JsonObject();
         player.addProperty("uuid", "not-a-minecraft-uuid");

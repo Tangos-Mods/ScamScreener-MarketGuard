@@ -33,6 +33,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +50,7 @@ public final class PlayerHud {
     private static final AtomicLong REQUEST_ID = new AtomicLong();
     private static volatile View view = View.hidden();
     private static volatile Preset preset = Preset.TRADE;
+    private static volatile ErrorDetails errorDetails;
     private static final ConcurrentHashMap<CacheKey, CachedPlayer> CACHED_PLAYERS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, String> RESOLVED_UUIDS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<RequestKey, CompletableFuture<MarketGuardApi.CachedValue<MarketGuardApi.PlayerData>>> PLAYER_REQUESTS = new ConcurrentHashMap<>();
@@ -69,6 +71,7 @@ public final class PlayerHud {
         }
 
         long requestId = REQUEST_ID.incrementAndGet();
+        errorDetails = null;
         view = View.loading(target);
         requestPlayer(target).whenComplete((result, error) -> {
             if (REQUEST_ID.get() != requestId) {
@@ -150,6 +153,7 @@ public final class PlayerHud {
 
     public static void clear() {
         REQUEST_ID.incrementAndGet();
+        errorDetails = null;
         view = View.hidden();
     }
 
@@ -322,9 +326,15 @@ public final class PlayerHud {
             throw new PlayerApiUnavailableException("Player API request failed with status " + statusCode, statusCode);
         }
 
+        String headers = response.substring(0, headerEnd);
+        String body = response.substring(headerEnd + 4);
+        if (headers.toLowerCase(Locale.ROOT).contains("\r\ntransfer-encoding: chunked")) {
+            body = decodeChunkedBody(body);
+        }
+
         JsonObject root;
         try {
-            root = JsonParser.parseString(response.substring(headerEnd + 4)).getAsJsonObject();
+            root = JsonParser.parseString(body).getAsJsonObject();
         } catch (Exception exception) {
             throw new PlayerApiUnavailableException("Player API response was not valid JSON.", exception);
         }
@@ -350,6 +360,39 @@ public final class PlayerHud {
         }
         String status = text(root, "status", "ok");
         return new PlayerResponse(player, "stale".equals(status));
+    }
+
+    private static String decodeChunkedBody(String body) {
+        StringBuilder decoded = new StringBuilder();
+        int offset = 0;
+        while (offset < body.length()) {
+            int lineEnd = body.indexOf("\r\n", offset);
+            if (lineEnd < 0) {
+                throw new PlayerApiUnavailableException("Player API chunked response was malformed.");
+            }
+            String sizeLine = body.substring(offset, lineEnd);
+            int extension = sizeLine.indexOf(';');
+            if (extension >= 0) {
+                sizeLine = sizeLine.substring(0, extension);
+            }
+            final int size;
+            try {
+                size = Integer.parseInt(sizeLine.trim(), 16);
+            } catch (NumberFormatException exception) {
+                throw new PlayerApiUnavailableException("Player API chunked response had an invalid chunk size.", exception);
+            }
+            offset = lineEnd + 2;
+            if (size == 0) {
+                return decoded.toString();
+            }
+            if (size < 0 || offset + size > body.length() || offset + size + 2 > body.length()
+                    || !body.startsWith("\r\n", offset + size)) {
+                throw new PlayerApiUnavailableException("Player API chunked response was malformed.");
+            }
+            decoded.append(body, offset, offset + size);
+            offset += size + 2;
+        }
+        throw new PlayerApiUnavailableException("Player API chunked response was malformed.");
     }
 
     public static final class Widgets {
@@ -397,18 +440,28 @@ public final class PlayerHud {
     }
 
     static HudContent errorContent(Target target) {
+        ErrorDetails details = errorDetails;
+        if (details == null || !details.target().equals(target)) {
+            String uuid = knownUuid(target);
+            details = new ErrorDetails(
+                    target,
+                    uuid,
+                    uuid != null && ScamScreenerBlacklistCompat.findBlacklistedPlayerName(uuid) != null
+            );
+            errorDetails = details;
+        }
+
         Map<String, Component> lines = new LinkedHashMap<>();
         lines.put("title", Component.literal(preset.title()).withStyle(ChatFormatting.RED));
         lines.put("name", Component.literal(target.player()).withStyle(ChatFormatting.YELLOW));
         lines.put("status", Component.literal("Player data unavailable").withStyle(ChatFormatting.GRAY));
 
-        String uuid = knownUuid(target);
+        String uuid = details.uuid();
         if (uuid != null) {
             lines.put("seen", Component.literal(seenSummary(uuid)).withStyle(ChatFormatting.DARK_GRAY));
-            boolean blacklisted = ScamScreenerBlacklistCompat.findBlacklistedPlayerName(uuid) != null;
             lines.put("scamscreener", Component.translatable(
-                    blacklisted ? "marketguard.hud.scamscreener.match" : "marketguard.hud.scamscreener.no_entry"
-            ).withStyle(blacklisted ? ChatFormatting.RED : ChatFormatting.GRAY));
+                    details.blacklisted() ? "marketguard.hud.scamscreener.match" : "marketguard.hud.scamscreener.no_entry"
+            ).withStyle(details.blacklisted() ? ChatFormatting.RED : ChatFormatting.GRAY));
             if (preset == Preset.PROFILE || preset == Preset.ALL) {
                 lines.put("uuid", Component.literal("UUID: " + uuid).withStyle(ChatFormatting.DARK_GRAY));
             }
@@ -596,8 +649,13 @@ public final class PlayerHud {
             return resolved;
         }
 
+        String compact = target.player().replace("-", "");
+        if (compact.matches("(?i)[0-9a-f]{32}")) {
+            return compact.toLowerCase(java.util.Locale.ROOT);
+        }
+
         Minecraft client = Minecraft.getInstance();
-        if (client.getConnection() != null) {
+        if (client != null && client.getConnection() != null) {
             for (var playerInfo : client.getConnection().getListedOnlinePlayers()) {
                 if (playerInfo.getProfile().name().equalsIgnoreCase(target.player())
                         && playerInfo.getProfile().id() != null) {
@@ -608,8 +666,7 @@ public final class PlayerHud {
             }
         }
 
-        String compact = target.player().replace("-", "");
-        return compact.matches("(?i)[0-9a-f]{32}") ? compact.toLowerCase(java.util.Locale.ROOT) : null;
+        return null;
     }
 
     private static void addItems(Map<String, Component> lines, String label, JsonArray items) {
@@ -756,6 +813,7 @@ public final class PlayerHud {
         RESOLVED_UUIDS.clear();
         PLAYER_REQUESTS.clear();
         playerRequester = PlayerHud::requestPlayerFromApi;
+        errorDetails = null;
         view = View.hidden();
         preset = Preset.TRADE;
         MarketGuardConfig.setPlayerHudShowUnavailableRows(false);
@@ -813,6 +871,8 @@ public final class PlayerHud {
     private record CacheKey(String uuid, String profileId) {}
 
     private record CachedPlayer(JsonObject player, boolean blacklisted, boolean stale, long fetchedAt) {}
+
+    private record ErrorDetails(Target target, String uuid, boolean blacklisted) {}
 
     record PlayerResponse(JsonObject player, boolean stale) {}
 
