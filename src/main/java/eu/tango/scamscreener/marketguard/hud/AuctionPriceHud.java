@@ -1,7 +1,10 @@
 package eu.tango.scamscreener.marketguard.hud;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.auction.AuctionReferencePrice;
+import eu.tango.scamscreener.marketguard.data.BazaarData;
 import eu.tango.scamscreener.marketguard.data.LowestBinData;
+import eu.tango.scamscreener.marketguard.data.MarketRiskEvaluator;
 import eu.tango.scamscreener.marketguard.util.CoinFormat;
 import eu.tango.tangosHudLib.api.HudContent;
 import eu.tango.tangosHudLib.api.HudLibrary;
@@ -12,10 +15,11 @@ import net.minecraft.network.chat.Component;
 import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public final class AuctionPriceHud {
-    private static final double CAUTION_OVER_LOWEST_BIN = 0.05;
-    private static final double EXTREME_DISCOUNT_BELOW_LOWEST_BIN = 0.20;
+    private static final double CAUTION_OVER_REFERENCE = 0.05;
+    private static final double EXTREME_DISCOUNT_BELOW_REFERENCE = 0.20;
     private static final long LOWEST_BIN_LOOKUP_INTERVAL_MS = 1_000L;
 
     private static volatile View view = View.hidden();
@@ -45,6 +49,7 @@ public final class AuctionPriceHud {
 
         lastLowestBinLookupAt = System.currentTimeMillis();
         LowestBinData.refreshAsyncIfNeeded();
+        BazaarData.refreshAsyncIfNeeded();
         LowestBinData.LookupResult lowestBin = LowestBinData.lookupLowestBin(current.itemId());
         if (!lowestBin.equals(current.lowestBin())) {
             view = new View(current.itemId(), current.displayName(), current.auctionPrice(), lowestBin);
@@ -60,56 +65,80 @@ public final class AuctionPriceHud {
         }
 
         Map<String, Component> lines = new LinkedHashMap<>();
-        lines.put("title", Component.literal("Auction Price").withStyle(ChatFormatting.AQUA));
         lines.put("item", Component.literal(current.displayName()).withStyle(ChatFormatting.WHITE));
         lines.put("auction", Component.literal("This auction: " + coins(current.auctionPrice())).withStyle(ChatFormatting.GOLD));
 
         LowestBinData.LookupResult lowestBin = current.lowestBin();
         if (lowestBin == null) {
-            lines.put("lowest_bin", Component.literal("Loading Lowest BIN...").withStyle(ChatFormatting.GRAY));
+            lines.put("lowest_bin", Component.literal("Loading reference price...").withStyle(ChatFormatting.GRAY));
             return build(lines);
         }
 
-        if (!lowestBin.hasValue()) {
+        Optional<AuctionReferencePrice> selected = AuctionReferencePrice.select(
+                lowestBin.value(),
+                lowestBin.average7d(),
+                lowestBin.average30d()
+        );
+        if (selected.isEmpty()) {
             String status;
             if (lowestBin.loading()) {
-                status = "Loading Lowest BIN...";
+                status = "Loading reference price...";
             } else if (lowestBin.refreshFailed()) {
-                status = "Lowest BIN unavailable.";
+                status = "Reference price unavailable.";
             } else {
-                status = "No Lowest BIN data for this item.";
+                status = "No reference price data for this item.";
             }
             lines.put("lowest_bin", Component.literal(status).withStyle(ChatFormatting.GRAY));
         } else {
-            lines.put("lowest_bin", Component.literal("Lowest BIN: " + coins(lowestBin.value())).withStyle(ChatFormatting.YELLOW));
-        }
+            AuctionReferencePrice reference = selected.orElseThrow();
+            lines.put("lowest_bin", Component.literal(
+                    "Reference: " + coins(reference.value()) + " (" + qualityLabel(reference) + ")"
+            ).withStyle(qualityColor(reference.quality())));
 
-        if (lowestBin.average7d() == null) {
-            lines.put("difference", Component.literal("7d average unavailable.").withStyle(ChatFormatting.GRAY));
-        } else {
-            double difference = current.auctionPrice() - lowestBin.average7d();
-            double differencePercentage = difference / lowestBin.average7d();
-            lines.put("difference", Component.literal("Difference to 7d avg: " + signedCoins(difference) + " (" + signedPercentage(differencePercentage) + ")")
+            double difference = current.auctionPrice() - reference.value();
+            double differencePercentage = difference / reference.value();
+            lines.put("difference", Component.literal("Difference to reference: " + signedCoins(difference) + " (" + signedPercentage(differencePercentage) + ")")
                     .withStyle(difference > 0.0 ? ChatFormatting.RED : difference < 0.0 ? ChatFormatting.GREEN : ChatFormatting.GRAY));
-        }
 
-        if (lowestBin.hasValue()) {
-            double lowestBinDifferencePercentage = (current.auctionPrice() - lowestBin.value()) / lowestBin.value();
-            if (lowestBinDifferencePercentage >= CAUTION_OVER_LOWEST_BIN) {
-                lines.put("advice", Component.literal("Caution: " + percentage(lowestBinDifferencePercentage) + " above Lowest BIN.")
+            if (!reference.safeForProtection()) {
+                lines.put("advice", Component.literal("Price advice limited: low data quality.").withStyle(ChatFormatting.YELLOW));
+            } else if (differencePercentage >= CAUTION_OVER_REFERENCE) {
+                lines.put("advice", Component.literal("Caution: " + percentage(differencePercentage) + " above reference.")
                         .withStyle(ChatFormatting.YELLOW));
-            } else if (lowestBinDifferencePercentage <= -EXTREME_DISCOUNT_BELOW_LOWEST_BIN) {
-                lines.put("advice", Component.literal("Great deal: " + percentage(-lowestBinDifferencePercentage) + " below Lowest BIN.")
+            } else if (differencePercentage <= -EXTREME_DISCOUNT_BELOW_REFERENCE) {
+                lines.put("advice", Component.literal("Great deal: " + percentage(-differencePercentage) + " below reference.")
                         .withStyle(ChatFormatting.GREEN));
             } else {
-                lines.put("advice", Component.literal("Price is near Lowest BIN.").withStyle(ChatFormatting.GRAY));
+                lines.put("advice", Component.literal("Price is near the reference.").withStyle(ChatFormatting.GRAY));
             }
         }
 
+        addRiskLines(lines, current.itemId(), lowestBin);
         if (lowestBin.stale()) {
-            lines.put("stale", Component.literal("Lowest BIN data may be outdated.").withStyle(ChatFormatting.YELLOW));
+            lines.put("stale", Component.literal("Price data may be outdated.").withStyle(ChatFormatting.YELLOW));
         }
         return build(lines);
+    }
+
+    private static void addRiskLines(Map<String, Component> lines, String itemId, LowestBinData.LookupResult lowestBin) {
+        MarketRiskEvaluator.Warning volatility = MarketRiskEvaluator.auctionVolatility(
+                lowestBin.average7d(),
+                lowestBin.average30d()
+        );
+        if (volatility != null) {
+            lines.put("volatility", warningLine(volatility, false));
+        }
+
+        BazaarData.LookupResult bazaar = BazaarData.lookupProduct(itemId);
+        MarketRiskEvaluator.Warning liquidity = MarketRiskEvaluator.bazaarLiquidity(bazaar.value());
+        if (liquidity != null) {
+            lines.put("liquidity", warningLine(liquidity, bazaar.stale()));
+        }
+    }
+
+    private static Component warningLine(MarketRiskEvaluator.Warning warning, boolean stale) {
+        String text = warning.text() + (stale ? " Bazaar data may be outdated." : "");
+        return Component.literal(text).withStyle(warning.highRisk() ? ChatFormatting.RED : ChatFormatting.YELLOW);
     }
 
     private static HudContent build(Map<String, Component> lines) {
@@ -136,6 +165,19 @@ public final class AuctionPriceHud {
 
     private static String signedPercentage(double value) {
         return (value > 0.0 ? "+" : value < 0.0 ? "-" : "") + percentage(Math.abs(value));
+    }
+
+    private static String qualityLabel(AuctionReferencePrice reference) {
+        String signals = reference.signalCount() == 1 ? "1 signal" : reference.signalCount() + " signals";
+        return reference.quality().name().toLowerCase(Locale.ROOT) + " quality, " + signals;
+    }
+
+    private static ChatFormatting qualityColor(AuctionReferencePrice.Quality quality) {
+        return switch (quality) {
+            case HIGH -> ChatFormatting.GREEN;
+            case MEDIUM -> ChatFormatting.YELLOW;
+            case LOW -> ChatFormatting.RED;
+        };
     }
 
     record View(String itemId, String displayName, double auctionPrice, LowestBinData.LookupResult lowestBin) {

@@ -10,6 +10,7 @@ import eu.tango.scamscreener.marketguard.hud.ForgeProfitHud;
 import eu.tango.scamscreener.marketguard.hud.MinionProfitHud;
 import eu.tango.scamscreener.marketguard.hud.PlayerHud;
 import eu.tango.scamscreener.marketguard.hud.ProfitTrackerHud;
+import eu.tango.scamscreener.marketguard.hud.TradeGuardHud;
 import eu.tango.scamscreener.marketguard.playerhud.EncounterTracker;
 import eu.tango.scamscreener.marketguard.profittracker.ProfitTracker;
 import eu.tango.scamscreener.marketguard.screen.HypixelScreens;
@@ -36,6 +37,7 @@ public class MarketGuard implements ClientModInitializer {
         ProfitTracker.initialize();
         ProfitTrackerHud.initialize();
         AuctionPriceHud.initialize();
+        TradeGuardHud.initialize();
         MinionProfitHud.initialize();
         ForgeProfitHud.initialize();
         UpdateJoinNotifier.initialize();

@@ -30,9 +30,20 @@ public final class LowestBinData {
 
     private LowestBinData() {}
 
-    public record LookupResult(Double value, Double average7d, boolean stale, boolean loading, boolean refreshFailed) {
+    public record LookupResult(
+            Double value,
+            Double average7d,
+            Double average30d,
+            boolean stale,
+            boolean loading,
+            boolean refreshFailed
+    ) {
+        public LookupResult(Double value, Double average7d, boolean stale, boolean loading, boolean refreshFailed) {
+            this(value, average7d, null, stale, loading, refreshFailed);
+        }
+
         public LookupResult(Double value, boolean stale, boolean loading, boolean refreshFailed) {
-            this(value, null, stale, loading, refreshFailed);
+            this(value, null, null, stale, loading, refreshFailed);
         }
 
         public boolean hasValue() {
@@ -47,26 +58,40 @@ public final class LowestBinData {
             throw new Exception("Item not found");
         }
 
+        notifyBlacklistedAuctioneerIfPresent(snapshot, itemId);
         MarketGuard.debug("Lowest BIN lookup hit itemId='{}' value={}", itemId, lowestBin);
         return lowestBin;
     }
 
     public static LookupResult lookupLowestBin(String itemId) {
+        return lookupPriceData(itemId, true);
+    }
+
+    public static LookupResult lookupPriceData(String itemId) {
+        return lookupPriceData(itemId, false);
+    }
+
+    private static LookupResult lookupPriceData(String itemId, boolean notifyAuctioneer) {
         SnapshotCache.View cacheView = CACHE.view();
+        if (notifyAuctioneer) {
+            notifyBlacklistedAuctioneerIfPresent(cacheView.snapshot(), itemId);
+        }
         Double value = readPrice(cacheView.snapshot(), itemId);
         Double average7d = readAverage7d(cacheView.snapshot(), itemId);
+        Double average30d = readAverage30d(cacheView.snapshot(), itemId);
 
-        if (value != null || average7d != null) {
+        if (value != null || average7d != null || average30d != null) {
             MarketGuard.debug(
-                    "Using {} Lowest BIN cache itemId='{}' lowestBin={} average7d={} loading={} refreshFailed={}",
+                    "Using {} Lowest BIN cache itemId='{}' lowestBin={} average7d={} average30d={} loading={} refreshFailed={}",
                     cacheView.stale() ? "stale" : "fresh",
                     itemId,
                     value,
                     average7d,
+                    average30d,
                     cacheView.loading(),
                     cacheView.refreshFailed()
             );
-            return new LookupResult(value, average7d, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
+            return new LookupResult(value, average7d, average30d, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
         }
 
         MarketGuard.debug(
@@ -77,7 +102,7 @@ public final class LowestBinData {
                 cacheView.loading(),
                 cacheView.refreshFailed()
         );
-        return new LookupResult(null, null, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
+        return new LookupResult(null, null, null, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
     }
 
     public static String findItemIdByName(String displayName) {
@@ -180,8 +205,6 @@ public final class LowestBinData {
             return null;
         }
 
-        notifyBlacklistedAuctioneerIfPresent(snapshot, itemId);
-
         if (!product.has("price")) {
             return null;
         }
@@ -197,6 +220,16 @@ public final class LowestBinData {
 
         double average7d = product.get("avg7d").getAsDouble();
         return Double.isFinite(average7d) && average7d > 0.0 ? average7d : null;
+    }
+
+    private static Double readAverage30d(JsonObject snapshot, String itemId) {
+        JsonObject product = readProduct(snapshot, itemId);
+        if (product == null || !product.has("avg30d")) {
+            return null;
+        }
+
+        double average30d = product.get("avg30d").getAsDouble();
+        return Double.isFinite(average30d) && average30d > 0.0 ? average30d : null;
     }
 
     private static JsonObject readProduct(JsonObject snapshot, String itemId) {

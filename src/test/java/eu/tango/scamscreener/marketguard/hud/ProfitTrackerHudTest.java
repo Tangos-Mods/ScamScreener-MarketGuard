@@ -50,8 +50,7 @@ class ProfitTrackerHudTest {
         HudContent content = ProfitTrackerHud.content(true, null);
 
         assertTrue(content.visible());
-        assertEquals("Profit Tracker", content.lines().getFirst().getString());
-        assertEquals("No SkyBlock profile detected.", content.lines().get(1).getString());
+        assertEquals("No SkyBlock profile detected.", content.lines().getFirst().getString());
     }
 
     @Test
@@ -69,12 +68,12 @@ class ProfitTrackerHudTest {
 
         HudContent content = ProfitTrackerHud.content(true, "orange");
 
-        assertProfitLine(content.lines().get(1), "Bazaar: +1,500", ChatFormatting.GREEN);
-        assertProfitLine(content.lines().get(2), "Auction House: -250", ChatFormatting.RED);
-        assertProfitLine(content.lines().get(3), "Minion: +500", ChatFormatting.GREEN);
-        assertProfitLine(content.lines().get(4), "Interest: +125", ChatFormatting.GREEN);
-        assertProfitLine(content.lines().get(5), "Allowance: +100", ChatFormatting.GREEN);
-        assertProfitLine(content.lines().get(6), "Total: +1,975", ChatFormatting.GREEN);
+        assertProfitLine(content.lines().get(0), "Bazaar: +1,500", ChatFormatting.GREEN);
+        assertProfitLine(content.lines().get(1), "Auction House: -250", ChatFormatting.RED);
+        assertProfitLine(content.lines().get(2), "Minion: +500", ChatFormatting.GREEN);
+        assertProfitLine(content.lines().get(3), "Interest: +125", ChatFormatting.GREEN);
+        assertProfitLine(content.lines().get(4), "Allowance: +100", ChatFormatting.GREEN);
+        assertProfitLine(content.lines().get(5), "Total: +1,975", ChatFormatting.GREEN);
     }
 
     private static void assertProfitLine(Component line, String expectedText, ChatFormatting signColor) {

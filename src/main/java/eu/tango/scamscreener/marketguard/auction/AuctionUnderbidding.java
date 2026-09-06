@@ -35,20 +35,20 @@ public final class AuctionUnderbidding {
         AuctionPricingResolver.PricingData pricing = AuctionPricingResolver.resolve(context, context.getMc().player, true);
         if (pricing == null) return;
 
-        double minimumAllowedPrice = pricing.lowestBin() * getMinimumAllowedPercentage();
-        double absoluteDifference = pricing.lowestBin() - pricing.playerPrice();
+        double minimumAllowedPrice = pricing.referencePrice() * getMinimumAllowedPercentage();
+        double absoluteDifference = pricing.referencePrice() - pricing.playerPrice();
         MarketGuard.debug(
-                "Underbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} minimumAllowedPrice={} absoluteDifference={} absoluteThreshold={}",
+                "Underbidding check itemId='{}' playerPrice={} referencePrice={} threshold={} minimumAllowedPrice={} absoluteDifference={} absoluteThreshold={}",
                 pricing.itemId(),
                 pricing.playerPrice(),
-                pricing.lowestBin(),
+                pricing.referencePrice(),
                 getThreshold(),
                 minimumAllowedPrice,
                 absoluteDifference,
                 eu.tango.scamscreener.marketguard.MarketGuardConfig.getAbsoluteThreshold()
         );
         if (pricing.playerPrice() < minimumAllowedPrice && AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference)) {
-            double underbidPercent = ((pricing.lowestBin() - pricing.playerPrice()) / pricing.lowestBin()) * 100.0;
+            double underbidPercent = ((pricing.referencePrice() - pricing.playerPrice()) / pricing.referencePrice()) * 100.0;
             AuctionProtectionChecks.trigger(context, "Underbidding", "underbidPercent", pricing.itemId(), underbidPercent);
             underbidding(
                     pricing.itemId(),

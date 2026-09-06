@@ -126,7 +126,7 @@ public final class MarketGuardCommand {
         }
 
         context.getSource().sendFeedback(message(Component.literal(
-                "Underbidding threshold set to " + value + "% (max " + (100 - value) + "% under Lowest BIN)."
+                "Underbidding threshold set to " + value + "% (max " + (100 - value) + "% under the reference price)."
         ).withStyle(ChatFormatting.GREEN)));
         return 1;
     }
@@ -146,7 +146,7 @@ public final class MarketGuardCommand {
         }
 
         context.getSource().sendFeedback(message(Component.literal(
-                "Overbidding threshold set to " + value + "% (max " + (value - 100) + "% above Lowest BIN)."
+                "Overbidding threshold set to " + value + "% (max " + (value - 100) + "% above the reference price)."
         ).withStyle(ChatFormatting.GREEN)));
         return 1;
     }
@@ -309,7 +309,7 @@ public final class MarketGuardCommand {
             return "disabled";
         }
 
-        return threshold + "% (max " + (100 - threshold) + "% under Lowest BIN)";
+        return threshold + "% (max " + (100 - threshold) + "% under the reference price)";
     }
 
     private static String formatOverbiddingThreshold(int threshold) {
@@ -317,7 +317,7 @@ public final class MarketGuardCommand {
             return "disabled";
         }
 
-        return threshold + "% (max " + (threshold - 100) + "% above Lowest BIN)";
+        return threshold + "% (max " + (threshold - 100) + "% above the reference price)";
     }
 
     private static Component message(Component text) {

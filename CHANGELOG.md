@@ -1,3 +1,22 @@
+## 1.5.0-beta.3
+
+## Added
+
+- Add observed Minion production forecasts using current Bazaar instant-sell prices.
+- Add auction price volatility and Bazaar liquidity warnings.
+- Add an item-side Trade Guard for the Hypixel trade screen with conservative warning suppression when prices are missing, stale, or low confidence.
+- Add known profile-value, skill, finance, and Museum context through the normalized ScamScreener API finance contract.
+
+## Fixed
+
+- Keep the Player HUD encounter count consistent between the live widget and editor preview.
+
+## Changed
+
+- Use a quality-rated reference assembled from Lowest BIN, 7-day, and 30-day auction prices for HUD guidance and auction protection.
+- Remove the template title row from every HUD widget and from the HUD row editor.
+- Remove obsolete `title` rows from existing HUD configurations during normalization.
+
 ## 1.5.0-beta.2
 
 ## Fixed

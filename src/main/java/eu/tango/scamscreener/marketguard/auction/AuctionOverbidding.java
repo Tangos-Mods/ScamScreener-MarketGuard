@@ -44,20 +44,20 @@ public final class AuctionOverbidding {
         AuctionPricingResolver.PricingData pricing = AuctionPricingResolver.resolve(context, mc.player, false);
         if (pricing == null) return;
 
-        double maximumAllowedPrice = pricing.lowestBin() * getMaximumAllowedPercentage();
-        double absoluteDifference = pricing.playerPrice() - pricing.lowestBin();
+        double maximumAllowedPrice = pricing.referencePrice() * getMaximumAllowedPercentage();
+        double absoluteDifference = pricing.playerPrice() - pricing.referencePrice();
         MarketGuard.debug(
-                "Overbidding check itemId='{}' playerPrice={} lowestBin={} threshold={} maximumAllowedPrice={} absoluteDifference={} absoluteThreshold={}",
+                "Overbidding check itemId='{}' playerPrice={} referencePrice={} threshold={} maximumAllowedPrice={} absoluteDifference={} absoluteThreshold={}",
                 pricing.itemId(),
                 pricing.playerPrice(),
-                pricing.lowestBin(),
+                pricing.referencePrice(),
                 getThreshold(),
                 maximumAllowedPrice,
                 absoluteDifference,
                 eu.tango.scamscreener.marketguard.MarketGuardConfig.getAbsoluteThreshold()
         );
         if (pricing.playerPrice() > maximumAllowedPrice && AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference)) {
-            double overbidPercent = ((pricing.playerPrice() - pricing.lowestBin()) / pricing.lowestBin()) * 100.0;
+            double overbidPercent = ((pricing.playerPrice() - pricing.referencePrice()) / pricing.referencePrice()) * 100.0;
             AuctionProtectionChecks.trigger(context, "Overbidding", "overbidPercent", pricing.itemId(), overbidPercent);
             overbidding(
                     pricing.itemId(),

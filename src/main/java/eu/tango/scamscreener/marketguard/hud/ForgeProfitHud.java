@@ -74,8 +74,6 @@ public final class ForgeProfitHud {
         }
 
         Map<String, Component> lines = new LinkedHashMap<>();
-        lines.put("title", Component.literal("Forge Bazaar Profit").withStyle(ChatFormatting.AQUA));
-
         if (current.items().isEmpty()) {
             lines.put("profit", Component.literal("No items in Forge slots.").withStyle(ChatFormatting.GRAY));
         }

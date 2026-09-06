@@ -14,7 +14,7 @@ import static eu.tango.scamscreener.marketguard.util.MessageBuilder.error;
 final class AuctionPricingResolver {
     private AuctionPricingResolver() {}
 
-    record PricingData(String itemId, String displayName, double lowestBin, double playerPrice) {}
+    record PricingData(String itemId, String displayName, double referencePrice, double playerPrice) {}
 
     static PricingData resolve(AuctionInteractEvent.Context context, LocalPlayer player, boolean cancelOnFailure) {
         ItemStack itemStack = context.getAuctionItemStack();
@@ -44,9 +44,14 @@ final class AuctionPricingResolver {
         String displayName = SkyBlockItemUtil.getDisplayName(itemStack);
 
         LowestBinData.LookupResult lookupResult = LowestBinData.lookupLowestBin(itemId);
-        if (!lookupResult.hasValue()) {
+        AuctionReferencePrice reference = AuctionReferencePrice.select(
+                lookupResult.value(),
+                lookupResult.average7d(),
+                lookupResult.average30d()
+        ).orElse(null);
+        if (reference == null) {
             MarketGuard.debug(
-                    "Pricing resolution skipped: no cached Lowest BIN is available for '{}' stale={} loading={} refreshFailed={}",
+                    "Pricing resolution skipped: no cached reference price is available for '{}' stale={} loading={} refreshFailed={}",
                     itemId,
                     lookupResult.stale(),
                     lookupResult.loading(),
@@ -55,26 +60,33 @@ final class AuctionPricingResolver {
             return null;
         }
 
-        if (lookupResult.stale()) {
-            MarketGuard.debug("Pricing resolution continues with stale Lowest BIN cache for '{}'", itemId);
+        if (!reference.safeForProtection()) {
+            MarketGuard.debug(
+                    "Pricing resolution skipped: reference price quality is too low for protection itemId='{}' signals={} spread={}",
+                    itemId,
+                    reference.signalCount(),
+                    reference.relativeSpread()
+            );
+            return null;
         }
 
-        double lowestBin = lookupResult.value();
-        if (lowestBin <= 0.0) {
-            MarketGuard.debug("Pricing resolution aborted: Lowest BIN was invalid for '{}' value={}", itemId, lowestBin);
-            return abortPricing(
-                    context,
-                    player,
-                    Component.literal("Lowest BIN is invalid for ").append(itemId).withStyle(ChatFormatting.RED),
-                    cancelOnFailure
-            );
+        if (lookupResult.stale()) {
+            MarketGuard.debug("Pricing resolution continues with stale reference price cache for '{}'", itemId);
         }
-        MarketGuard.debug("Resolved Lowest BIN itemId='{}' value={}", itemId, lowestBin);
+
+        MarketGuard.debug(
+                "Resolved reference price itemId='{}' value={} quality={} signals={} spread={}",
+                itemId,
+                reference.value(),
+                reference.quality(),
+                reference.signalCount(),
+                reference.relativeSpread()
+        );
 
         try {
             double playerPrice = context.getPlayerPrice();
             MarketGuard.debug("Resolved player price itemId='{}' value={}", itemId, playerPrice);
-            return new PricingData(itemId, displayName, lowestBin, playerPrice);
+            return new PricingData(itemId, displayName, reference.value(), playerPrice);
         } catch (Exception e) {
             MarketGuard.debug("Pricing resolution failed while reading player price for '{}' error='{}'", itemId, e.getMessage());
             return abortPricing(

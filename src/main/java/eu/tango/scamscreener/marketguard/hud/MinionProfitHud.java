@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.function.Function;
 
 public final class MinionProfitHud {
     private static final Pattern MINION_TITLE = Pattern.compile("(?i)^.*\\bminion\\s+[ivxlcdm]+\\s*$");
@@ -30,8 +31,10 @@ public final class MinionProfitHud {
             38, 39, 40, 41, 42, 43
     };
     private static final long BAZAAR_LOOKUP_INTERVAL_MS = 1_000L;
+    private static final long MIN_FORECAST_OBSERVATION_MS = 60_000L;
 
     private static volatile View view = View.hidden();
+    private static volatile Observation observation;
     private static volatile long lastBazaarLookupAt;
 
     private MinionProfitHud() {}
@@ -46,7 +49,10 @@ public final class MinionProfitHud {
             return;
         }
 
-        View next = new View(BazaarProfit.collectItems(menu, STORAGE_SLOTS), heldCoins(menu));
+        View next = new View(title, BazaarProfit.collectItems(menu, STORAGE_SLOTS), heldCoins(menu));
+        if (!view.visible() || !view.title().equals(next.title())) {
+            observation = new Observation(next, System.currentTimeMillis());
+        }
         if (!next.equals(view)) {
             view = next;
             lastBazaarLookupAt = 0L;
@@ -56,6 +62,7 @@ public final class MinionProfitHud {
 
     public static void clear() {
         view = View.hidden();
+        observation = null;
         lastBazaarLookupAt = 0L;
     }
 
@@ -86,7 +93,7 @@ public final class MinionProfitHud {
         BazaarData.refreshAsyncIfNeeded();
     }
 
-    static HudContent content(View current, BazaarProfit.Summary summary) {
+    static HudContent content(View current, BazaarProfit.Summary summary, Forecast forecast) {
         if (!current.visible()) {
             return HudContent.builder()
                     .line(Component.literal("Minion Profit"))
@@ -95,8 +102,6 @@ public final class MinionProfitHud {
         }
 
         Map<String, Component> lines = new LinkedHashMap<>();
-        lines.put("title", Component.literal("Minion Profit").withStyle(ChatFormatting.AQUA));
-
         if (current.heldCoins() != null) {
             lines.put("held_coins", Component.literal("Held Coins: " + coins(current.heldCoins())).withStyle(ChatFormatting.GOLD));
         }
@@ -108,6 +113,30 @@ public final class MinionProfitHud {
         if (summary.pricedStacks() > 0) {
             String label = summary.missingStacks() == 0 ? "Potential Bazaar profit: " : "Known Bazaar profit: ";
             lines.put("profit", Component.literal(label + coins(summary.total())).withStyle(ChatFormatting.GOLD));
+        }
+        if (forecast.state() == ForecastState.AVAILABLE) {
+            lines.put("forecast", Component.translatable(
+                    "marketguard.hud.minion.forecast.available",
+                    coins(forecast.coinsPerHour()),
+                    coins(forecast.coinsPerDay())
+            ).withStyle(ChatFormatting.GREEN));
+            lines.put("forecast_status", Component.translatable(
+                    "marketguard.hud.minion.forecast.basis",
+                    duration(forecast.observedMs())
+            ).withStyle(ChatFormatting.DARK_GRAY));
+        } else {
+            String key = switch (forecast.state()) {
+                case OBSERVING -> "marketguard.hud.minion.forecast.observing";
+                case NO_INCREASE -> "marketguard.hud.minion.forecast.no_increase";
+                case WAITING_FOR_PRICES -> "marketguard.hud.minion.forecast.waiting_prices";
+                case RESTARTED -> "marketguard.hud.minion.forecast.restarted";
+                case AVAILABLE -> throw new IllegalStateException("Available forecast handled above");
+            };
+            Object[] args = switch (forecast.state()) {
+                case OBSERVING, NO_INCREASE -> new Object[]{duration(forecast.observedMs())};
+                default -> new Object[0];
+            };
+            lines.put("forecast_status", Component.translatable(key, args).withStyle(ChatFormatting.GRAY));
         }
         if (summary.missingStacks() > 0) {
             String suffix = summary.missingStacks() == 1 ? " stack is" : " stacks are";
@@ -133,6 +162,66 @@ public final class MinionProfitHud {
 
     private static String coins(double value) {
         return eu.tango.scamscreener.marketguard.util.CoinFormat.format(value) + " coins";
+    }
+
+    private static String duration(long millis) {
+        long seconds = Math.max(0L, millis / 1_000L);
+        if (seconds < 60L) {
+            return seconds + "s";
+        }
+        return (seconds / 60L) + "m " + (seconds % 60L) + "s";
+    }
+
+    static Forecast estimate(
+            Observation baseline,
+            View current,
+            Function<String, BazaarData.LookupResult> lookup,
+            long nowMs
+    ) {
+        long observedMs = Math.max(0L, nowMs - baseline.observedAtMs());
+        BazaarProfit.ValueDelta storageDelta = BazaarProfit.valueDelta(
+                baseline.view().items(),
+                current.items(),
+                lookup
+        );
+        if (storageDelta.missingItems() > 0) {
+            return new Forecast(ForecastState.WAITING_FOR_PRICES, 0.0, 0.0, observedMs);
+        }
+
+        double heldCoinsDelta = baseline.view().heldCoins() != null && current.heldCoins() != null
+                ? current.heldCoins() - baseline.view().heldCoins()
+                : 0.0;
+        double valueDelta = storageDelta.total() + heldCoinsDelta;
+        if (valueDelta < -0.5) {
+            return new Forecast(ForecastState.RESTARTED, 0.0, 0.0, observedMs);
+        }
+        if (observedMs < MIN_FORECAST_OBSERVATION_MS) {
+            return new Forecast(ForecastState.OBSERVING, 0.0, 0.0, observedMs);
+        }
+        if (valueDelta <= 0.5) {
+            return new Forecast(ForecastState.NO_INCREASE, 0.0, 0.0, observedMs);
+        }
+
+        double coinsPerHour = valueDelta * 3_600_000.0 / observedMs;
+        return new Forecast(ForecastState.AVAILABLE, coinsPerHour, coinsPerHour * 24.0, observedMs);
+    }
+
+    private static synchronized Forecast currentForecast(
+            View current,
+            Function<String, BazaarData.LookupResult> lookup,
+            long nowMs
+    ) {
+        Observation baseline = observation;
+        if (baseline == null || !baseline.view().title().equals(current.title())) {
+            observation = new Observation(current, nowMs);
+            return new Forecast(ForecastState.OBSERVING, 0.0, 0.0, 0L);
+        }
+
+        Forecast forecast = estimate(baseline, current, lookup, nowMs);
+        if (forecast.state() == ForecastState.RESTARTED) {
+            observation = new Observation(current, nowMs);
+        }
+        return forecast;
     }
 
     private static Double heldCoins(AbstractContainerMenu menu) {
@@ -168,13 +257,29 @@ public final class MinionProfitHud {
         return null;
     }
 
-    record View(List<BazaarProfit.Item> items, Double heldCoins) {
+    record View(String title, List<BazaarProfit.Item> items, Double heldCoins) {
         static View hidden() {
-            return new View(null, null);
+            return new View(null, null, null);
         }
 
         boolean visible() {
             return items != null;
+        }
+    }
+
+    record Observation(View view, long observedAtMs) {}
+
+    enum ForecastState {
+        OBSERVING,
+        AVAILABLE,
+        NO_INCREASE,
+        WAITING_FOR_PRICES,
+        RESTARTED
+    }
+
+    record Forecast(ForecastState state, double coinsPerHour, double coinsPerDay, long observedMs) {
+        static Forecast observing() {
+            return new Forecast(ForecastState.OBSERVING, 0.0, 0.0, 0L);
         }
     }
 
@@ -185,13 +290,15 @@ public final class MinionProfitHud {
         public static HudContent minionProfit() {
             refreshBazaarIfDue();
             if (!view.visible()) {
-                return content(view, BazaarProfit.Summary.empty());
+                return content(view, BazaarProfit.Summary.empty(), Forecast.observing());
             }
             if (!HudCustomization.visibleOnCurrentScreen(HudCustomization.HudId.MINION_PROFIT)) {
                 return HudContent.builder().line(Component.literal("Minion Profit")).visible(false).build();
             }
             View current = view;
-            return content(current, BazaarProfit.summarize(current.items(), BazaarData::lookupProduct));
+            BazaarProfit.Summary summary = BazaarProfit.summarize(current.items(), BazaarData::lookupProduct);
+            Forecast forecast = currentForecast(current, BazaarData::lookupProduct, System.currentTimeMillis());
+            return content(current, summary, forecast);
         }
     }
 }

@@ -9,8 +9,13 @@ import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.api.MarketGuardApi;
 import eu.tango.scamscreener.marketguard.api.PlayerApiUnavailableException;
+import eu.tango.scamscreener.marketguard.auction.AuctionReferencePrice;
 import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
+import eu.tango.scamscreener.marketguard.data.BazaarData;
+import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.playerhud.EncounterTracker;
+import eu.tango.scamscreener.marketguard.playerhud.PlayerFinanceData;
+import eu.tango.scamscreener.marketguard.playerhud.VisibleProfileValue;
 import eu.tango.scamscreener.marketguard.util.CoinFormat;
 import net.fabricmc.loader.api.FabricLoader;
 import eu.tango.tangosHudLib.api.HudContent;
@@ -40,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public final class PlayerHud {
@@ -55,6 +61,7 @@ public final class PlayerHud {
     private static final ConcurrentHashMap<String, String> RESOLVED_UUIDS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<RequestKey, CompletableFuture<MarketGuardApi.CachedValue<MarketGuardApi.PlayerData>>> PLAYER_REQUESTS = new ConcurrentHashMap<>();
     private static volatile Function<Target, PlayerResponse> playerRequester = PlayerHud::requestPlayerFromApi;
+    private static volatile BiFunction<String, String, PlayerFinanceData.LookupResult> financeLookup = PlayerFinanceData::lookupCached;
 
     private PlayerHud() {}
 
@@ -73,6 +80,7 @@ public final class PlayerHud {
         long requestId = REQUEST_ID.incrementAndGet();
         errorDetails = null;
         view = View.loading(target);
+        refreshPriceCachesIfNeeded();
         requestPlayer(target).whenComplete((result, error) -> {
             if (REQUEST_ID.get() != requestId) {
                 return;
@@ -88,7 +96,28 @@ public final class PlayerHud {
 
             MarketGuardApi.PlayerData playerData = result.value();
             view = View.ready(target, playerData.raw(), playerData.blacklisted(), playerData.apiStale());
+            requestPlayerFinance(playerData.raw());
         });
+    }
+
+    private static void requestPlayerFinance(JsonObject player) {
+        if (preset == Preset.TRADE) {
+            return;
+        }
+        JsonObject profile = object(player, "profile");
+        String playerUuid = text(player, "uuid", null);
+        String profileId = text(profile, "id", null);
+        if (playerUuid != null && profileId != null) {
+            PlayerFinanceData.request(playerUuid, profileId);
+        }
+    }
+
+    private static void refreshPriceCachesIfNeeded() {
+        if (preset == Preset.TRADE) {
+            return;
+        }
+        BazaarData.refreshAsyncIfNeeded();
+        LowestBinData.refreshAsyncIfNeeded();
     }
 
     public static MarketGuardApi.CachedValue<MarketGuardApi.PlayerData> lookupCachedPlayer(String player, String profileId) {
@@ -428,13 +457,11 @@ public final class PlayerHud {
         for (String row : HudCustomization.rows(HudCustomization.HudId.PLAYER)) {
             lines.put(row, HudCustomization.example(HudCustomization.HudId.PLAYER, row));
         }
-        lines.put("title", Component.literal(preset.title()).withStyle(ChatFormatting.AQUA));
         return buildPlayer(lines);
     }
 
     private static HudContent loadingContent(Target target) {
         Map<String, Component> lines = new LinkedHashMap<>();
-        lines.put("title", Component.literal("Trade Check").withStyle(ChatFormatting.AQUA));
         lines.put("status", Component.literal("Loading " + target.player() + "...").withStyle(ChatFormatting.GRAY));
         return buildPlayer(lines);
     }
@@ -452,7 +479,6 @@ public final class PlayerHud {
         }
 
         Map<String, Component> lines = new LinkedHashMap<>();
-        lines.put("title", Component.literal(preset.title()).withStyle(ChatFormatting.RED));
         lines.put("name", Component.literal(target.player()).withStyle(ChatFormatting.YELLOW));
         lines.put("status", Component.literal("Player data unavailable").withStyle(ChatFormatting.GRAY));
 
@@ -483,8 +509,6 @@ public final class PlayerHud {
 
     static HudContent playerContent(Target target, JsonObject player, boolean blacklisted, boolean stale) {
         Map<String, Component> lines = new LinkedHashMap<>();
-        lines.put("title", Component.literal(preset.title()).withStyle(ChatFormatting.AQUA));
-
         String status = text(player, "status", "unavailable");
         String name = text(player, "name", text(player, "uuid", target.player()));
         lines.put("name", Component.literal(name).withStyle(status.equals("ok") ? ChatFormatting.WHITE : ChatFormatting.YELLOW));
@@ -507,8 +531,11 @@ public final class PlayerHud {
         }
 
         JsonObject profile = object(player, "profile");
+        PlayerFinanceData.LookupResult finance = finance(player, profile);
         if (preset == Preset.COMPACT) {
             addWealthSummary(lines, profile);
+            addVisibleProfileValue(lines, profile, finance);
+            addMuseumContext(lines, finance);
             addSafetyAndDataState(lines, player, blacklisted, stale);
             if (MarketGuardConfig.isPlayerHudShowUnavailableRows()) {
                 lines.putIfAbsent("wealth", unavailableLine("Bank: n/a | Purse: n/a"));
@@ -517,7 +544,10 @@ public final class PlayerHud {
         }
 
         if (profile != null) {
-            lines.put("profile", Component.literal("Profile: " + text(profile, "name", "Unnamed profile")).withStyle(ChatFormatting.GRAY));
+            String profileSummary = profileSummary(profile);
+            if (profileSummary != null) {
+                lines.put("profile", Component.literal(profileSummary).withStyle(ChatFormatting.GRAY));
+            }
             JsonObject wealth = object(profile, "wealth");
             if (wealth != null) {
                 String bank = coins(wealth, "bank");
@@ -538,6 +568,8 @@ public final class PlayerHud {
             if (skillSummary != null) {
                 lines.put("skills", Component.literal(skillSummary).withStyle(ChatFormatting.GREEN));
             }
+            addVisibleProfileValue(lines, profile, finance);
+            addMuseumContext(lines, finance);
         }
 
         if (preset == Preset.PROFILE || preset == Preset.ALL) {
@@ -573,6 +605,251 @@ public final class PlayerHud {
         }
     }
 
+    private static PlayerFinanceData.LookupResult finance(JsonObject player, JsonObject profile) {
+        String playerUuid = text(player, "uuid", null);
+        String profileId = text(profile, "id", null);
+        return playerUuid == null || profileId == null
+                ? new PlayerFinanceData.LookupResult(null, false, false, false)
+                : financeLookup.apply(playerUuid, profileId);
+    }
+
+    private static void addVisibleProfileValue(
+            Map<String, Component> lines,
+            JsonObject profile,
+            PlayerFinanceData.LookupResult lookup
+    ) {
+        JsonObject wealth = object(profile, "wealth");
+        if (profile == null) {
+            return;
+        }
+
+        JsonArray armor = wealth == null ? null : array(wealth, "armor");
+        JsonArray equipment = wealth == null ? null : array(wealth, "equipment");
+        List<VisibleProfileValue.Item> visibleItems = new ArrayList<>();
+        addVisibleItems(visibleItems, armor);
+        addVisibleItems(visibleItems, equipment);
+        Double knownFinance = knownFinanceTotal(lookup.value());
+        VisibleProfileValue.Estimate estimate = VisibleProfileValue.estimate(
+                knownFinance,
+                null,
+                visibleItems,
+                PlayerHud::visibleItemPrice
+        );
+
+        if (estimate.hasValue()) {
+            lines.put("profile_value", Component.literal(
+                    "Known profile value estimate: " + CoinFormat.coins(estimate.value())
+            ).withStyle(ChatFormatting.GOLD));
+        } else {
+            lines.put("profile_value", unavailableLine("Known profile value estimate: unavailable"));
+        }
+
+        if (armor != null || equipment != null) {
+            lines.put("value_coverage", Component.literal(
+                    "Priced visible gear: " + estimate.pricedItems() + "/" + estimate.visibleItems() + " items"
+            ).withStyle(estimate.missingItemPrices() == 0 ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
+        }
+
+        List<String> missing = new ArrayList<>();
+        PlayerFinanceData.Response response = lookup.value();
+        if (response == null || !response.usable()) {
+            missing.add("finance");
+        } else {
+            for (String field : response.unavailableFields()) {
+                if (!field.isBlank()) {
+                    missing.add(field);
+                }
+            }
+            if (knownFinance == null && response.unavailableFields().isEmpty()) {
+                missing.add("known finance total");
+            }
+        }
+        if (armor == null) {
+            missing.add("armor");
+        }
+        if (equipment == null) {
+            missing.add("equipment");
+        }
+        if (estimate.missingItemPrices() > 0) {
+            String itemPrices = estimate.missingItemPrices() == 1
+                    ? "1 visible item price"
+                    : estimate.missingItemPrices() + " visible item prices";
+            if (estimate.lowQualityItemPrices() > 0) {
+                itemPrices += " (" + estimate.lowQualityItemPrices() + " low quality)";
+            }
+            missing.add(itemPrices);
+        }
+        missing.add("inventory");
+        missing.add("pets");
+        lines.put("value_missing", Component.literal("Not included: " + String.join(", ", missing))
+                .withStyle(ChatFormatting.DARK_GRAY));
+
+        String marketStatus;
+        if (lookup.loading()) {
+            marketStatus = "Finance data: loading";
+        } else if (response != null && !("ok".equals(response.status()) || "partial".equals(response.status()))) {
+            marketStatus = "Finance data: " + response.status();
+        } else if (lookup.refreshFailed()) {
+            marketStatus = "Finance data: refresh failed";
+        } else if (lookup.stale()) {
+            marketStatus = "Finance data: stale";
+        } else if (estimate.loading()) {
+            marketStatus = "Estimate data: refreshing market prices";
+        } else if (estimate.stale()) {
+            marketStatus = "Estimate data: stale market prices";
+        } else if (estimate.refreshFailed()) {
+            marketStatus = "Estimate data: market refresh failed";
+        } else if (response != null && "partial".equals(response.status())) {
+            marketStatus = "Finance data: partial";
+        } else if (estimate.visibleItems() == 0) {
+            marketStatus = "Estimate basis: server-known finance values";
+        } else {
+            marketStatus = "Estimate data: finance API + cached market prices";
+        }
+        lines.put("value_status", Component.literal(marketStatus)
+                .withStyle(lookup.stale() || lookup.refreshFailed() || estimate.stale() || estimate.refreshFailed()
+                        ? ChatFormatting.YELLOW
+                        : ChatFormatting.DARK_GRAY));
+
+    }
+
+    private static Double knownFinanceTotal(PlayerFinanceData.Response response) {
+        if (response == null || !response.usable() || response.profile().finance() == null) {
+            return null;
+        }
+        PlayerFinanceData.Finance finance = response.profile().finance();
+        if (response.fieldAvailable("finance.knownTotal") && validNumber(finance.knownTotal())) {
+            return finance.knownTotal();
+        }
+
+        double total = 0.0;
+        boolean known = false;
+        if (response.fieldAvailable("finance.bank") && validNumber(finance.bank())) {
+            total += finance.bank();
+            known = true;
+        }
+        if (response.fieldAvailable("finance.purse") && validNumber(finance.purse())) {
+            total += finance.purse();
+            known = true;
+        }
+        if (response.fieldAvailable("finance.museumValue") && validNumber(finance.museumValue())) {
+            total += finance.museumValue();
+            known = true;
+        }
+        return known ? total : null;
+    }
+
+    private static void addMuseumContext(Map<String, Component> lines, PlayerFinanceData.LookupResult lookup) {
+        PlayerFinanceData.Response response = lookup.value();
+        if (response == null) {
+            if (lookup.loading()) {
+                lines.put("finance_status", Component.literal("Finance & museum: loading").withStyle(ChatFormatting.GRAY));
+            }
+            return;
+        }
+
+        lines.put("finance_status", Component.literal(
+                "Finance & museum: " + response.status() + (lookup.stale() ? " (stale)" : "")
+        ).withStyle("ok".equals(response.status()) && !lookup.stale() ? ChatFormatting.DARK_GRAY : ChatFormatting.YELLOW));
+
+        PlayerFinanceData.Profile profile = response.profile();
+        PlayerFinanceData.Museum museum = profile == null ? null : profile.museum();
+        if (museum != null && response.usable()) {
+            List<String> values = new ArrayList<>();
+            if (response.fieldAvailable("museum.value") && validNumber(museum.value())) {
+                values.add("Value: " + CoinFormat.coins(museum.value()));
+            }
+            if (response.fieldAvailable("museum.appraisal") && museum.appraisal() != null) {
+                values.add("Appraisal: " + (museum.appraisal() ? "available" : "unavailable"));
+            }
+            if (!values.isEmpty()) {
+                lines.put("museum", Component.literal("Museum: " + String.join(" | ", values))
+                        .withStyle(ChatFormatting.GOLD));
+            }
+
+            List<String> items = new ArrayList<>();
+            if (response.fieldAvailable("museum.donatedCount") && museum.donatedCount() != null) {
+                items.add(museum.donatedCount() + " donated exhibits");
+            }
+            if (response.fieldAvailable("museum.specialCount") && museum.specialCount() != null) {
+                items.add(museum.specialCount() + " special exhibits");
+            }
+            if (!items.isEmpty()) {
+                lines.put("museum_items", Component.literal("Museum ownership: " + String.join(" | ", items))
+                        .withStyle(ChatFormatting.GRAY));
+            }
+        }
+        lines.put("finance_history", Component.literal("Income, costs & ROI: unavailable")
+                .withStyle(ChatFormatting.DARK_GRAY));
+    }
+
+    private static boolean validNumber(Double value) {
+        return value != null && Double.isFinite(value) && value >= 0.0;
+    }
+
+    private static void addVisibleItems(List<VisibleProfileValue.Item> items, JsonArray values) {
+        if (values == null) {
+            return;
+        }
+        for (JsonElement element : values) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject item = element.getAsJsonObject();
+            Long count = longValue(item, "count");
+            int quantity = count != null && count > 0L && count <= Integer.MAX_VALUE ? count.intValue() : 1;
+            items.add(new VisibleProfileValue.Item(text(item, "id", null), quantity));
+        }
+    }
+
+    static VisibleProfileValue.ItemPrice visibleItemPrice(String itemId) {
+        BazaarData.LookupResult bazaar = BazaarData.lookupProduct(itemId);
+        if (bazaar.hasValue() && Double.isFinite(bazaar.value().sell()) && bazaar.value().sell() > 0.0) {
+            return new VisibleProfileValue.ItemPrice(
+                    bazaar.value().sell(),
+                    false,
+                    bazaar.stale(),
+                    bazaar.loading(),
+                    bazaar.refreshFailed()
+            );
+        }
+
+        LowestBinData.LookupResult auction = LowestBinData.lookupPriceData(itemId);
+        AuctionReferencePrice reference = AuctionReferencePrice.select(
+                auction.value(),
+                auction.average7d(),
+                auction.average30d()
+        ).orElse(null);
+        if (reference != null && reference.safeForProtection()) {
+            return new VisibleProfileValue.ItemPrice(
+                    reference.value(),
+                    false,
+                    auction.stale(),
+                    auction.loading(),
+                    auction.refreshFailed()
+            );
+        }
+        return new VisibleProfileValue.ItemPrice(
+                null,
+                reference != null,
+                bazaar.stale() || auction.stale(),
+                bazaar.loading() || auction.loading(),
+                bazaar.refreshFailed() || auction.refreshFailed()
+        );
+    }
+
+    private static String profileSummary(JsonObject profile) {
+        String name = text(profile, "name", null);
+        String id = text(profile, "id", null);
+        if (name != null && id != null) {
+            return "Profile: " + name + " | ID: " + id;
+        }
+        if (name != null) {
+            return "Profile: " + name;
+        }
+        return id == null ? null : "Profile ID: " + id;
+    }
+
     private static void addUnavailableRows(Map<String, Component> lines, boolean includeUuid) {
         if (!MarketGuardConfig.isPlayerHudShowUnavailableRows()) {
             return;
@@ -580,6 +857,14 @@ public final class PlayerHud {
         lines.putIfAbsent("first_join", unavailableLine("First joined: n/a"));
         lines.putIfAbsent("profile", unavailableLine("Profile: n/a"));
         lines.putIfAbsent("wealth", unavailableLine("Bank: n/a | Purse: n/a"));
+        lines.putIfAbsent("profile_value", unavailableLine("Known profile value estimate: n/a"));
+        lines.putIfAbsent("value_coverage", unavailableLine("Priced visible gear: n/a"));
+        lines.putIfAbsent("value_missing", unavailableLine("Not included: finance, inventory, pets"));
+        lines.putIfAbsent("value_status", unavailableLine("Estimate data: n/a"));
+        lines.putIfAbsent("museum", unavailableLine("Museum: n/a"));
+        lines.putIfAbsent("museum_items", unavailableLine("Museum ownership: n/a"));
+        lines.putIfAbsent("finance_status", unavailableLine("Finance & museum: n/a"));
+        lines.putIfAbsent("finance_history", unavailableLine("Income, costs & ROI: unavailable"));
         lines.putIfAbsent("armor", unavailableLine("Armor: n/a"));
         lines.putIfAbsent("equipment", unavailableLine("Equipment: n/a"));
         lines.putIfAbsent("pet", unavailableLine("Active pet: n/a"));
@@ -640,7 +925,7 @@ public final class PlayerHud {
     }
 
     static String seenSummary(String uuid) {
-        return uuid == null ? null : EncounterTracker.timesSeen(uuid) + " times seen";
+        return uuid == null ? null : "Seen: " + EncounterTracker.timesSeen(uuid) + " times";
     }
 
     private static String knownUuid(Target target) {
@@ -739,11 +1024,32 @@ public final class PlayerHud {
         }
 
         List<String> values = new ArrayList<>();
+        double levelTotal = 0.0;
+        int levelCount = 0;
+        for (Map.Entry<String, JsonElement> entry : skills.entrySet()) {
+            if (!entry.getValue().isJsonObject()) {
+                continue;
+            }
+            Double level = number(entry.getValue().getAsJsonObject(), "level");
+            if (level != null && level >= 0.0) {
+                levelTotal += level;
+                levelCount++;
+            }
+        }
         for (String skill : List.of("farming", "mining", "combat")) {
             JsonObject value = object(skills, skill);
             if (value != null && value.has("level")) {
                 values.add(skill.substring(0, 1).toUpperCase() + skill.substring(1) + " " + text(value, "level", "?"));
             }
+        }
+        if (levelCount > 0) {
+            values.add(String.format(
+                    Locale.US,
+                    "Visible avg %.1f (%d %s)",
+                    levelTotal / levelCount,
+                    levelCount,
+                    levelCount == 1 ? "skill" : "skills"
+            ));
         }
         return values.isEmpty() ? null : "Skills: " + String.join(" | ", values);
     }
@@ -768,6 +1074,18 @@ public final class PlayerHud {
         }
         try {
             return CoinFormat.format(object.get(key).getAsDouble());
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static Double number(JsonObject object, String key) {
+        if (object == null || !object.has(key) || object.get(key).isJsonNull()) {
+            return null;
+        }
+        try {
+            double value = object.get(key).getAsDouble();
+            return Double.isFinite(value) && value >= 0.0 ? value : null;
         } catch (RuntimeException ignored) {
             return null;
         }
@@ -813,6 +1131,7 @@ public final class PlayerHud {
         RESOLVED_UUIDS.clear();
         PLAYER_REQUESTS.clear();
         playerRequester = PlayerHud::requestPlayerFromApi;
+        financeLookup = PlayerFinanceData::lookupCached;
         errorDetails = null;
         view = View.hidden();
         preset = Preset.TRADE;
@@ -830,6 +1149,10 @@ public final class PlayerHud {
 
     static void setPlayerRequesterForTests(Function<Target, PlayerResponse> requester) {
         playerRequester = requester;
+    }
+
+    static void setFinanceLookupForTests(BiFunction<String, String, PlayerFinanceData.LookupResult> lookup) {
+        financeLookup = lookup;
     }
 
     private enum State {

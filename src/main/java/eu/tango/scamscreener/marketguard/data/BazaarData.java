@@ -23,7 +23,19 @@ public final class BazaarData {
 
     private BazaarData() {}
 
-    public record Product(String itemName, double buy, double sell) {}
+    public record Product(
+            String itemName,
+            double buy,
+            double sell,
+            Long buyVolume,
+            Long sellVolume,
+            Long buyMovingWeek,
+            Long sellMovingWeek
+    ) {
+        public Product(String itemName, double buy, double sell) {
+            this(itemName, buy, sell, null, null, null, null);
+        }
+    }
 
     public record LookupResult(Product value, boolean stale, boolean loading, boolean refreshFailed) {
         public boolean hasValue() {
@@ -144,7 +156,28 @@ public final class BazaarData {
         }
 
         String itemName = product.has("item_name") ? product.get("item_name").getAsString() : itemId;
-        return new Product(itemName, product.get("buy").getAsDouble(), product.get("sell").getAsDouble());
+        return new Product(
+                itemName,
+                product.get("buy").getAsDouble(),
+                product.get("sell").getAsDouble(),
+                readNonNegativeLong(product, "buyVolume"),
+                readNonNegativeLong(product, "sellVolume"),
+                readNonNegativeLong(product, "buyMovingWeek"),
+                readNonNegativeLong(product, "sellMovingWeek")
+        );
+    }
+
+    private static Long readNonNegativeLong(JsonObject product, String field) {
+        if (!product.has(field) || product.get(field).isJsonNull()) {
+            return null;
+        }
+
+        try {
+            long value = product.get(field).getAsLong();
+            return value >= 0L ? value : null;
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private static String readItemName(JsonObject product) {

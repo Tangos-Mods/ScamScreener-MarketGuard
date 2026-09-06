@@ -23,7 +23,7 @@ class LowestBinDataLookupTest {
     @Test
     void returnsFreshCachedValue() throws Exception {
         JsonObject snapshot = new JsonObject();
-        snapshot.add("FANCY_LEGGINGS", product(123.0, 150.0, "57ad19ca639f412daee5765f87874e35"));
+        snapshot.add("FANCY_LEGGINGS", product(123.0, 150.0, 175.0, "57ad19ca639f412daee5765f87874e35"));
 
         LowestBinData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
         LowestBinData.cache().setLastRefreshAttemptAtMsForTests(System.currentTimeMillis());
@@ -38,6 +38,7 @@ class LowestBinDataLookupTest {
         assertTrue(result.hasValue());
         assertEquals(123.0, result.value());
         assertEquals(150.0, result.average7d());
+        assertEquals(175.0, result.average30d());
         assertFalse(result.stale());
         assertFalse(result.loading());
         assertFalse(result.refreshFailed());
@@ -125,6 +126,20 @@ class LowestBinDataLookupTest {
     }
 
     @Test
+    void priceDataLookupDoesNotTreatVisibleGearAsTheViewedAuctioneer() {
+        JsonObject snapshot = new JsonObject();
+        snapshot.add("FANCY_LEGGINGS", product(123.0, 125.0, "57ad19ca639f412daee5765f87874e35"));
+        LowestBinData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
+
+        try (MockedStatic<ScamScreenerBlacklistCompat> blacklist = mockStatic(ScamScreenerBlacklistCompat.class)) {
+            LowestBinData.LookupResult result = LowestBinData.lookupPriceData("FANCY_LEGGINGS");
+
+            assertEquals(123.0, result.value());
+            blacklist.verifyNoInteractions();
+        }
+    }
+
+    @Test
     void findItemIdByNameUsesNormalizedDisplayName() {
         JsonObject snapshot = new JsonObject();
         JsonObject product = product(123.0, null, "57ad19ca639f412daee5765f87874e35");
@@ -137,10 +152,17 @@ class LowestBinDataLookupTest {
     }
 
     private static JsonObject product(double price, Double average7d, String auctioneerUuid) {
+        return product(price, average7d, null, auctioneerUuid);
+    }
+
+    private static JsonObject product(double price, Double average7d, Double average30d, String auctioneerUuid) {
         JsonObject product = new JsonObject();
         product.addProperty("price", price);
         if (average7d != null) {
             product.addProperty("avg7d", average7d);
+        }
+        if (average30d != null) {
+            product.addProperty("avg30d", average30d);
         }
         product.addProperty("auctioneerUuid", auctioneerUuid);
         return product;

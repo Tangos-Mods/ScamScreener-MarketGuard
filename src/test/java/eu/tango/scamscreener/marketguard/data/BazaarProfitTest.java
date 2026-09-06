@@ -24,6 +24,19 @@ class BazaarProfitTest {
         assertTrue(summary.stale());
     }
 
+    @Test
+    void valuesOnlyTheObservedInventoryChangeAtCurrentPrices() {
+        BazaarProfit.ValueDelta delta = BazaarProfit.valueDelta(
+                List.of(new BazaarProfit.Item("GOLD_INGOT", "Gold Ingot", 64)),
+                List.of(new BazaarProfit.Item("GOLD_INGOT", "Gold Ingot", 74)),
+                this::priceFor
+        );
+
+        assertEquals(50.0, delta.total());
+        assertEquals(0, delta.missingItems());
+        assertTrue(delta.stale());
+    }
+
     private BazaarData.LookupResult priceFor(String itemId) {
         if (!"GOLD_INGOT".equals(itemId)) {
             return new BazaarData.LookupResult(null, false, false, false);

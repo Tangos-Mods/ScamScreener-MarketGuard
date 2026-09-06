@@ -9,6 +9,7 @@ import eu.tango.scamscreener.marketguard.hud.ForgeProfitHud;
 import eu.tango.scamscreener.marketguard.hud.HudCustomization;
 import eu.tango.scamscreener.marketguard.hud.MinionProfitHud;
 import eu.tango.scamscreener.marketguard.hud.PlayerHud;
+import eu.tango.scamscreener.marketguard.hud.TradeGuardHud;
 import eu.tango.scamscreener.marketguard.profittracker.ProfitTracker;
 import eu.tango.scamscreener.marketguard.screen.HypixelScreens;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
@@ -133,6 +134,7 @@ public abstract class AuctionHouseMixin {
         }
         AuctionPriceHud.clear();
         marketguard$auctionPriceWidgetKey = null;
+        TradeGuardHud.clear();
         MinionProfitHud.clear();
         ForgeProfitHud.clear();
     }
@@ -144,6 +146,7 @@ public abstract class AuctionHouseMixin {
         HudCustomization.setCurrentScreenTitle(title);
         showPlayerHudIfAvailable(screen, title);
         updateAuctionPriceWidget(screen, title);
+        TradeGuardHud.update(screen.getMenu(), title);
         MinionProfitHud.update(screen.getMenu(), title);
         ForgeProfitHud.update(screen.getMenu(), title);
         if (!isAuctionScreen(title)) {

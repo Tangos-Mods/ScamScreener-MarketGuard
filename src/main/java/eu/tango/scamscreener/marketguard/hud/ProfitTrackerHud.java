@@ -84,7 +84,6 @@ public final class ProfitTrackerHud {
 
         if (profileId == null) {
             return HudContent.builder()
-                    .line(Component.literal("Profit Tracker").withStyle(ChatFormatting.AQUA))
                     .line(Component.literal("No SkyBlock profile detected.").withStyle(ChatFormatting.GRAY))
                     .build();
         }
@@ -96,7 +95,6 @@ public final class ProfitTrackerHud {
         double allowanceProfit = ProfitTracker.getAllowanceAllTimeProfit(profileId);
         double totalProfit = bazaarProfit + auctionHouseProfit + minionProfit + interestProfit + allowanceProfit;
         Map<String, Component> lines = new LinkedHashMap<>();
-        lines.put("title", Component.literal("Profit Tracker").withStyle(ChatFormatting.AQUA));
         lines.put("bazaar", profitLine("Bazaar", bazaarProfit));
         lines.put("auction_house", profitLine("Auction House", auctionHouseProfit));
         lines.put("minion", profitLine("Minion", minionProfit));

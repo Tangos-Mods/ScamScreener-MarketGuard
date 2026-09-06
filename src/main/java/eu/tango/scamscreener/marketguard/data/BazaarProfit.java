@@ -5,7 +5,9 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 public final class BazaarProfit {
@@ -78,11 +80,70 @@ public final class BazaarProfit {
         return new Summary(total, pricedStacks, missingStacks, stale, loading, refreshFailed);
     }
 
+    public static ValueDelta valueDelta(
+            Iterable<Item> before,
+            Iterable<Item> after,
+            Function<String, BazaarData.LookupResult> lookup
+    ) {
+        if (before == null || after == null || lookup == null) {
+            return ValueDelta.empty();
+        }
+
+        Map<String, Integer> countChanges = new LinkedHashMap<>();
+        addCounts(countChanges, before, -1);
+        addCounts(countChanges, after, 1);
+
+        double total = 0.0;
+        int missingItems = 0;
+        boolean stale = false;
+        boolean loading = false;
+        boolean refreshFailed = false;
+        for (Map.Entry<String, Integer> entry : countChanges.entrySet()) {
+            if (entry.getValue() == 0) {
+                continue;
+            }
+
+            BazaarData.LookupResult result = lookup.apply(entry.getKey());
+            stale |= result.stale();
+            loading |= result.loading();
+            refreshFailed |= result.refreshFailed();
+            if (!result.hasValue()) {
+                missingItems++;
+                continue;
+            }
+            total += entry.getValue() * result.value().sell();
+        }
+        return new ValueDelta(total, missingItems, stale, loading, refreshFailed);
+    }
+
+    private static void addCounts(Map<String, Integer> counts, Iterable<Item> items, int multiplier) {
+        for (Item item : items) {
+            if (item == null || item.count() <= 0) {
+                continue;
+            }
+
+            String itemId = item.itemId();
+            if (itemId == null || itemId.isBlank()) {
+                itemId = BazaarData.findItemIdByName(item.displayName());
+            }
+            if (itemId == null || itemId.isBlank()) {
+                itemId = "?" + item.displayName();
+            }
+            counts.merge(itemId, multiplier * item.count(), Integer::sum);
+        }
+    }
+
     public record Item(String itemId, String displayName, int count) {}
 
     public record Summary(double total, int pricedStacks, int missingStacks, boolean stale, boolean loading, boolean refreshFailed) {
         public static Summary empty() {
             return new Summary(0.0, 0, 0, false, false, false);
+        }
+    }
+
+    public record ValueDelta(double total, int missingItems, boolean stale, boolean loading, boolean refreshFailed) {
+        public static ValueDelta empty() {
+            return new ValueDelta(0.0, 0, false, false, false);
         }
     }
 }
