@@ -14,6 +14,9 @@
   "entrypoints": {
     "client": [
       "eu.tango.scamscreener.marketguard.MarketGuard"
+    ],
+    "marketguard-api": [
+      "eu.tango.scamscreener.marketguard.api.MarketGuardApiEntrypoint"
     ]
   },
   "mixins": [

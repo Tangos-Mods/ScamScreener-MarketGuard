@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.update;
 
+import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 
@@ -17,12 +18,18 @@ public final class UpdateJoinNotifier {
         }
 
         initialized = true;
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
-                ModrinthUpdateChecker.checkOnJoin(updateInfo -> client.execute(() -> notifyOnce(client, updateInfo)))
-        );
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            if (!MarketGuardConfig.isUpdateNotificationsEnabled()) {
+                return;
+            }
+            ModrinthUpdateChecker.checkOnJoin(updateInfo -> client.execute(() -> notifyOnce(client, updateInfo)));
+        });
     }
 
     private static synchronized void notifyOnce(Minecraft client, ModrinthUpdateChecker.UpdateInfo updateInfo) {
+        if (!MarketGuardConfig.isUpdateNotificationsEnabled()) {
+            return;
+        }
         if (client.player == null || updateInfo == null || updateInfo.latestVersion() == null || updateInfo.latestVersion().isBlank()) {
             return;
         }

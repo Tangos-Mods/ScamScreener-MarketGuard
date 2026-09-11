@@ -12,6 +12,8 @@
   "marketguard.midnightconfig.absoluteThreshold.tooltip": "Only show auction warnings when the coin difference reaches this value.",
   "marketguard.midnightconfig.debug": "Debug logging",
   "marketguard.midnightconfig.debug.tooltip": "Write additional MarketGuard information to the log.",
+  "marketguard.midnightconfig.updateNotificationsEnabled": "Update notifications",
+  "marketguard.midnightconfig.updateNotificationsEnabled.tooltip": "Show a chat message on join when a new MarketGuard version is available on Modrinth.",
   "marketguard.midnightconfig.warnOnUnmatchedProfitConfirmations": "Warn about unmatched profit confirmations",
   "marketguard.midnightconfig.warnOnUnmatchedProfitConfirmations.tooltip": "Show a warning when a Bazaar or auction confirmation cannot be matched to a tracked trade.",
   "marketguard.profit_tracker.data": "Saved Profit Tracker data",

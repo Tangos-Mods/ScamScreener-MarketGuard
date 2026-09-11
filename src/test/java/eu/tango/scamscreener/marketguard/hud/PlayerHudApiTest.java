@@ -2,6 +2,7 @@ package eu.tango.scamscreener.marketguard.hud;
 
 import com.google.gson.JsonObject;
 import eu.tango.scamscreener.marketguard.api.MarketGuardApi;
+import eu.tango.scamscreener.marketguard.api.MarketGuardApiEntrypoint;
 import eu.tango.scamscreener.marketguard.api.PlayerApiUnavailableException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlayerHudApiTest {
+    private final MarketGuardApi api = new MarketGuardApiEntrypoint();
+
     @AfterEach
     void resetPlayerCache() {
         PlayerHud.resetForTests();
@@ -30,7 +33,7 @@ class PlayerHudApiTest {
         PlayerHud.setCachedPlayerForTests("Pankraz01", null, player("Pankraz01"), false, System.currentTimeMillis());
 
         MarketGuardApi.CachedValue<MarketGuardApi.PlayerData> result =
-                MarketGuardApi.lookupCachedPlayer("pankraz01", null);
+                api.lookupCachedPlayer("pankraz01", null);
 
         assertTrue(result.hasValue());
         assertEquals("Pankraz01", result.value().name());
@@ -38,7 +41,7 @@ class PlayerHudApiTest {
         assertFalse(result.loading());
         assertFalse(result.refreshFailed());
 
-        assertTrue(MarketGuardApi.lookupCachedPlayer("not-a-minecraft-uuid", null).hasValue());
+        assertTrue(api.lookupCachedPlayer("not-a-minecraft-uuid", null).hasValue());
     }
 
     @Test
@@ -59,10 +62,10 @@ class PlayerHudApiTest {
         });
 
         CompletableFuture<MarketGuardApi.CachedValue<MarketGuardApi.PlayerData>> first =
-                MarketGuardApi.requestPlayer("Pankraz01", null);
+                api.requestPlayer("Pankraz01", null);
         assertTrue(started.await(5, TimeUnit.SECONDS));
         CompletableFuture<MarketGuardApi.CachedValue<MarketGuardApi.PlayerData>> second =
-                MarketGuardApi.requestPlayer("Pankraz01", null);
+                api.requestPlayer("Pankraz01", null);
 
         assertSame(first, second);
         assertEquals(1, requests.get());
@@ -71,7 +74,7 @@ class PlayerHudApiTest {
         MarketGuardApi.CachedValue<MarketGuardApi.PlayerData> result = first.get(5, TimeUnit.SECONDS);
         assertTrue(result.hasValue());
         assertEquals("Pankraz01", result.value().name());
-        assertTrue(MarketGuardApi.lookupCachedPlayer("Pankraz01", null).hasValue());
+        assertTrue(api.lookupCachedPlayer("Pankraz01", null).hasValue());
     }
 
     @Test
@@ -81,7 +84,7 @@ class PlayerHudApiTest {
         });
 
         MarketGuardApi.CachedValue<MarketGuardApi.PlayerData> result =
-                MarketGuardApi.requestPlayer("Pankraz01", null).get(5, TimeUnit.SECONDS);
+                api.requestPlayer("Pankraz01", null).get(5, TimeUnit.SECONDS);
 
         assertFalse(result.hasValue());
         assertFalse(result.stale());
@@ -96,7 +99,7 @@ class PlayerHudApiTest {
         });
 
         ExecutionException error = assertThrows(ExecutionException.class,
-                () -> MarketGuardApi.requestPlayer("Pankraz01", null).get(5, TimeUnit.SECONDS));
+                () -> api.requestPlayer("Pankraz01", null).get(5, TimeUnit.SECONDS));
 
         PlayerApiUnavailableException cause = assertInstanceOf(PlayerApiUnavailableException.class, error.getCause());
         assertEquals(503, cause.statusCode());

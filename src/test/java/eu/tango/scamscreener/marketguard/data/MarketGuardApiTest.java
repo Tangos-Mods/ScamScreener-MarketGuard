@@ -1,7 +1,9 @@
 package eu.tango.scamscreener.marketguard.data;
 
 import com.google.gson.JsonObject;
+import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.api.MarketGuardApi;
+import eu.tango.scamscreener.marketguard.api.MarketGuardApiEntrypoint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,10 +15,23 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarketGuardApiTest {
+    private final MarketGuardApi api = new MarketGuardApiEntrypoint();
+
     @AfterEach
     void resetCaches() {
         BazaarData.resetForTests();
         LowestBinData.resetForTests();
+        MarketGuardConfig.setUpdateNotificationsEnabled(true);
+    }
+
+    @Test
+    void settingsToggleUpdateNotifications() {
+        assertTrue(api.settings().updateNotificationsEnabled());
+
+        api.settings().setUpdateNotificationsEnabled(false);
+
+        assertFalse(api.settings().updateNotificationsEnabled());
+        assertFalse(MarketGuardConfig.isUpdateNotificationsEnabled());
     }
 
     @Test
@@ -30,7 +45,7 @@ class MarketGuardApiTest {
         BazaarData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
 
         MarketGuardApi.CachedValue<MarketGuardApi.BazaarProduct> result =
-                MarketGuardApi.lookupCachedBazaarProduct("ENCHANTED_BREAD");
+                api.lookupCachedBazaarProduct("ENCHANTED_BREAD");
 
         assertTrue(result.hasValue());
         assertEquals("Enchanted Bread", result.value().itemName());
@@ -52,7 +67,7 @@ class MarketGuardApiTest {
         LowestBinData.cache().setRefreshInFlightForTests(new CompletableFuture<>());
         LowestBinData.cache().setLastRefreshAttemptFailedForTests(true);
 
-        MarketGuardApi.CachedValue<Double> result = MarketGuardApi.lookupCachedLowestBin("FANCY_LEGGINGS");
+        MarketGuardApi.CachedValue<Double> result = api.lookupCachedLowestBin("FANCY_LEGGINGS");
 
         assertTrue(result.hasValue());
         assertEquals(123.0, result.value());
@@ -63,7 +78,7 @@ class MarketGuardApiTest {
 
     @Test
     void reportsACacheMissWithoutStartingARequest() {
-        MarketGuardApi.CachedValue<Double> result = MarketGuardApi.lookupCachedLowestBin("FANCY_LEGGINGS");
+        MarketGuardApi.CachedValue<Double> result = api.lookupCachedLowestBin("FANCY_LEGGINGS");
 
         assertFalse(result.hasValue());
         assertFalse(result.stale());
@@ -83,7 +98,7 @@ class MarketGuardApiTest {
         LowestBinData.cache().setRefreshInFlightForTests(sharedRefresh);
 
         CompletableFuture<MarketGuardApi.CachedValue<Double>> request =
-                MarketGuardApi.requestLowestBin("FANCY_LEGGINGS");
+                api.requestLowestBin("FANCY_LEGGINGS");
 
         assertFalse(request.isDone());
         sharedRefresh.complete(snapshot);
@@ -104,7 +119,7 @@ class MarketGuardApiTest {
         BazaarData.cache().setRefreshInFlightForTests(sharedRefresh);
 
         CompletableFuture<MarketGuardApi.CachedValue<MarketGuardApi.BazaarProduct>> request =
-                MarketGuardApi.requestBazaarProduct("ENCHANTED_BREAD");
+                api.requestBazaarProduct("ENCHANTED_BREAD");
 
         assertFalse(request.isDone());
         sharedRefresh.complete(snapshot);
@@ -125,7 +140,7 @@ class MarketGuardApiTest {
         BazaarData.cache().setLastRefreshAttemptAtMsForTests(System.currentTimeMillis());
 
         MarketGuardApi.CachedValue<MarketGuardApi.BazaarProduct> result =
-                MarketGuardApi.requestBazaarProduct("ENCHANTED_BREAD").join();
+                api.requestBazaarProduct("ENCHANTED_BREAD").join();
 
         assertTrue(result.hasValue());
         assertTrue(result.stale());

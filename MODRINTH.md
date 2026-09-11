@@ -1,7 +1,6 @@
-# MarketGuard 1.5.0-beta.3
+# MarketGuard 1.5.0
 
-**This is a beta release.** 
-> Please report HUD, API, or auction-protection issues with the relevant Minecraft version and log output.
+First stable release of the 1.5.0 line. Everything below is new since 1.4.0.
 
 ## Added
 
@@ -9,12 +8,21 @@
 - Price-volatility and liquidity warnings in the Auction Price HUD.
 - A Trade Guard that compares the item value on both sides and pauses warnings when prices are incomplete or unreliable.
 - Known profile-value, skill, finance, and Museum context in the Player HUD.
+- A Player HUD layout picker with load, edit, save/update, delete, share, and clipboard import actions.
+- The `All` Player HUD preset and an option to render unavailable values as `n/a`.
+- Personal and co-op bank interest plus Allowance income in the Profit Tracker HUD, and a confirmed reset action for its data.
+- Per-HUD editors with drag-and-drop row ordering, plus a MidnightLib settings screen in Mod Menu.
+- An `Update notifications` setting under `General` that controls the Modrinth update message shown when joining a server.
 
 ## Fixed
 
 - HUD widgets no longer waste their first line on template names such as `Compact`.
-- The Player HUD encounter count now uses the same clear format in-game and in the HUD editor.
+- The Player HUD encounter count uses the same clear format in-game and in the HUD editor.
+- Player HUD requests through HTTP/1.1 proxies decode chunked responses correctly.
+- The UUID row stays visible in the Player HUD's `profile` preset.
 
 ## Changed
 
-- Auction guidance and protection now use a quality-rated reference from Lowest BIN plus 7-day and 30-day market prices.
+- Auction guidance and protection use a quality-rated reference from Lowest BIN plus 7-day and 30-day market prices.
+- The Auction Price HUD difference is calculated against the 7-day average instead of Lowest BIN.
+- Other mods can share MarketGuard's market and player data through the new `marketguard-api` entrypoint instead of sending their own requests.

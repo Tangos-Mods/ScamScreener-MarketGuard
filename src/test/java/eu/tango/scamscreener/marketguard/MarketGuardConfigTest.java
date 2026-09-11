@@ -23,6 +23,7 @@ class MarketGuardConfigTest {
         MarketGuardConfig.setOverbiddingThreshold(AuctionOverbidding.DEFAULT_THRESHOLD);
         MarketGuardConfig.setAbsoluteThreshold(MarketGuardConfig.DEFAULT_ABSOLUTE_THRESHOLD);
         MarketGuardConfig.setDebugEnabled(false);
+        MarketGuardConfig.setUpdateNotificationsEnabled(true);
         MarketGuardConfig.setWarnOnUnmatchedProfitConfirmations(false);
         MarketGuardConfig.setProfitTrackerHudEnabled(false);
         MarketGuardConfig.setPlayerHudPreset("trade");
@@ -37,6 +38,7 @@ class MarketGuardConfigTest {
                 "overbiddingThreshold",
                 "absoluteThreshold",
                 "debug",
+                "updateNotificationsEnabled",
                 "warnOnUnmatchedProfitConfirmations",
                 "profitTrackerHudEnabled",
                 "playerHudPreset",

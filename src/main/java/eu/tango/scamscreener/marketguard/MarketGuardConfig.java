@@ -36,6 +36,8 @@ public final class MarketGuardConfig extends MidnightConfig {
     public static double absoluteThreshold = DEFAULT_ABSOLUTE_THRESHOLD;
     @Entry(category = GENERAL)
     public static boolean debug = false;
+    @Entry(category = GENERAL)
+    public static boolean updateNotificationsEnabled = true;
     @Entry(category = TRACKER)
     public static boolean warnOnUnmatchedProfitConfirmations = false;
     @Entry(category = HUD)
@@ -141,6 +143,14 @@ public final class MarketGuardConfig extends MidnightConfig {
 
     public static void setDebugEnabled(boolean enabled) {
         debug = enabled;
+    }
+
+    public static boolean isUpdateNotificationsEnabled() {
+        return updateNotificationsEnabled;
+    }
+
+    public static void setUpdateNotificationsEnabled(boolean enabled) {
+        updateNotificationsEnabled = enabled;
     }
 
     public static long getAbsoluteThreshold() {

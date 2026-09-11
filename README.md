@@ -1,9 +1,5 @@
 # ScamScreener MarketGuard
 
-> **Beta release:** Version 1.5.0-beta.2 is currently published as a beta release.
-
-Beta 2 fixes Player HUD requests through HTTP/1.1 proxies by decoding chunked Player API responses correctly. It also caches failed ScamScreener blacklist lookups to avoid repeated console output.
-
 `ScamScreener MarketGuard` is a client-side Fabric mod that protects you from expensive misclicks in the SkyBlock Auction House. It compares prices in relevant BIN auction screens against the current `Lowest BIN` and blocks risky clicks before you lose coins or accidentally list an item far too cheaply.
 
 ## What The Mod Does
@@ -76,17 +72,26 @@ Examples:
 
 ### Mod integration API
 
-Other client-side mods can reuse MarketGuard's already loaded market data without creating another request:
+MarketGuard registers the Fabric entrypoint `marketguard-api`. Other client-side mods reuse MarketGuard's already loaded market data through it instead of sending their own requests, so the client only talks to the MarketGuard API once no matter how many mods need the data. Add MarketGuard as a `compileOnly` dependency (for example `compileOnly("maven.modrinth:marketguard:1.5.0+26.2")`) and resolve the entrypoint:
 
 ```java
 import eu.tango.scamscreener.marketguard.api.MarketGuardApi;
+import net.fabricmc.loader.api.FabricLoader;
 
-var lowestBin = MarketGuardApi.lookupCachedLowestBin("HYPERION");
+import java.util.List;
+
+List<MarketGuardApi> apis = FabricLoader.getInstance().getEntrypoints(MarketGuardApi.ENTRYPOINT_KEY, MarketGuardApi.class);
+if (apis.isEmpty()) {
+    return; // MarketGuard is not installed
+}
+MarketGuardApi marketGuard = apis.getFirst();
+
+var lowestBin = marketGuard.lookupCachedLowestBin("HYPERION");
 if (lowestBin.hasValue()) {
     double price = lowestBin.value();
 }
 
-MarketGuardApi.requestLowestBin("HYPERION").thenAccept(latest -> {
+marketGuard.requestLowestBin("HYPERION").thenAccept(latest -> {
     if (latest.hasValue()) {
         double price = latest.value();
     }
@@ -94,6 +99,8 @@ MarketGuardApi.requestLowestBin("HYPERION").thenAccept(latest -> {
 ```
 
 `lookupCachedLowestBin`, `lookupCachedBazaarProduct`, and `lookupCachedPlayer` are cache-only: they neither request data nor start a refresh. `requestLowestBin`, `requestBazaarProduct`, and `requestPlayer` use MarketGuard's shared request/cache path, so concurrent mods do not create duplicate API requests. `stale`, `loading`, and `refreshFailed` describe the cache state.
+
+`marketGuard.settings()` exposes the settings a modpack setup wizard such as [PackCore](https://github.com/Tangos-Mods/PackCore) may change. `setUpdateNotificationsEnabled(false)` turns off the Modrinth update message on join and saves the config; the same toggle is available to players under `MarketGuard Settings > General > Update notifications`.
 
 ### Local API development
 

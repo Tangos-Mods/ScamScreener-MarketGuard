@@ -1,3 +1,18 @@
+## 1.5.0
+
+First stable release of the 1.5.0 line; see the beta sections below for everything that changed since 1.4.0.
+
+## Added
+
+- Add an `Update notifications` setting under `General` that controls the Modrinth update message on join.
+- Expose a `marketguard-api` Fabric entrypoint. `MarketGuardApi` is now an interface implemented by `MarketGuardApiEntrypoint`, so other mods can discover it with `FabricLoader.getEntrypoints` and share MarketGuard's Lowest BIN, Bazaar, and Player API requests instead of sending their own.
+- Add `MarketGuardSettingsApi` so companion mods such as PackCore can read and toggle update notifications during modpack setup.
+
+## Changed
+
+- Publish as a stable release instead of a beta.
+- Replace the static `MarketGuardApi.lookupCached...`/`request...` methods with the entrypoint instance methods of the same name.
+
 ## 1.5.0-beta.3
 
 ## Added
