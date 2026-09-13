@@ -135,4 +135,14 @@ class MarketGuardConfigTest {
 
         assertTrue(field.isAnnotationPresent(MidnightConfig.Hidden.class));
     }
+
+    @Test
+    void noSettingLinksToAnUrl() {
+        // The bundled MidnightLib 1.9.3+26.2 opens @Comment urls through ConfirmLinkScreen.confirmLinkNow(Screen, String,
+        // boolean), which Minecraft 26.3 removed, so such an entry would throw NoSuchMethodError when clicked on 26.3.
+        for (Field field : MarketGuardConfig.class.getFields()) {
+            MidnightConfig.Comment comment = field.getAnnotation(MidnightConfig.Comment.class);
+            assertTrue(comment == null || comment.url().isBlank(), field.getName() + " must not link to an URL");
+        }
+    }
 }

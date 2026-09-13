@@ -11,6 +11,9 @@ import eu.tango.scamscreener.marketguard.profittracker.ProfitTrackerResetScreen;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.Button;
+//? if >=26.3 {
+/*import net.minecraft.client.gui.screens.Screen;*/
+//?}
 import net.minecraft.network.chat.Component;
 
 import java.io.IOException;
@@ -255,6 +258,22 @@ public final class MarketGuardConfig extends MidnightConfig {
     public static EntryInfo hudEntryInfo() {
         return new EntryInfo(null, MarketGuard.MOD_ID);
     }
+
+    //? if >=26.3 {
+    /*@Override
+    public MidnightConfigScreen getScreen(Screen parent) {
+        // MidnightLib has no 26.3 build. Its bundled 26.2 build draws the footer-only separator of tabbed screens
+        // through the pre-26.3 blaze3d RenderPipeline, which throws NoSuchFieldError on 26.3, so keep the vanilla
+        // separators instead. Remove together with the 26.3 MidnightLib mapping in build.gradle.kts.
+        return new MidnightConfigScreen(parent, MarketGuard.MOD_ID) {
+            @Override
+            public void init() {
+                super.init();
+                list.renderHeaderSeparator = true;
+            }
+        };
+    }*/
+    //?}
 
     static boolean normalizeValues() {
         boolean changed = false;

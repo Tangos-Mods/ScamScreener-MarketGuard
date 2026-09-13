@@ -112,7 +112,7 @@ GRADLE_USER_HOME="$PWD/.gradle-user-home" ./gradlew buildDevJars
 
 The generated `-dev.jar` files use `http://localhost:8081` for Lowest BIN, Bazaar and player HUD requests. Start the API with `uvicorn app.marketguard_api.main:create_marketguard_app --factory --host 0.0.0.0 --port 8081`. A different base URL can be supplied through `-PdevApiBaseUrl=http://localhost:9090`.
 
-For an IntelliJ development client, use `Minecraft Client Dev (:26.1.2)` or `Minecraft Client Dev (:26.2)`. These configurations launch the project classes with `-Dmarketguard.apiBaseUrl=http://localhost:8081`, so they use the same local API without installing a JAR first.
+For an IntelliJ development client, use `Minecraft Client Dev (:26.1.2)`, `Minecraft Client Dev (:26.2)` or `Minecraft Client Dev (:26.3)`. These configurations launch the project classes with `-Dmarketguard.apiBaseUrl=http://localhost:8081`, so they use the same local API without installing a JAR first.
 
 Disabling protection:
 
@@ -136,8 +136,11 @@ MarketGuard only blocks when both conditions are met:
 
 ## Build
 
-1. Run `./gradlew build` (Linux/macOS) or `gradlew.bat build` (Windows).
-2. Use `buildAndCollect` to collect remapped artifacts under `build/libs/<mod.version>/`.
+1. Build Tango's HudLib for every Stonecutter target first (`./gradlew build` in the neighbouring `../TangosHudLib` checkout); MarketGuard's Gradle configuration fails with `Missing local Tango's HudLib build` otherwise.
+2. Run `./gradlew build` (Linux/macOS) or `gradlew.bat build` (Windows).
+3. Use `buildAndCollect` to collect remapped artifacts under `build/libs/<mod.version>/`.
+
+A target can be built against a Minecraft pre-release by setting `deps.minecraft` in its `versions/<version>/gradle.properties` (currently `26.3` -> `26.3-rc-2`); such a target is skipped by the publish tasks until the property is removed.
 
 ## Project Notes
 

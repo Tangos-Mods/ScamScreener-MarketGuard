@@ -15,6 +15,7 @@ Press `F8` to place them; each HUD can be limited to specific screens in `Market
 
 ## Added
 
+- Minecraft 26.3 support.
 - An `Update notifications` setting under `General` that controls the update message shown when joining a server.
 - Other mods can reuse MarketGuard's market and player data instead of sending their own requests.
 

@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.hud;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -25,7 +26,6 @@ import eu.tango.tangosHudLib.api.HudWidget;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
 import java.net.URI;
@@ -69,7 +69,7 @@ public final class PlayerHud {
 
     public static void initialize() {
         MarketGuard.LOGGER.info("Player HUD API endpoint: {}", ApiEndpoint.baseUrl());
-        HudLibrary.registerWidgets(MarketGuard.MOD_ID, GLFW.GLFW_KEY_F8, Widgets.class, true);
+        HudLibrary.registerWidgets(MarketGuard.MOD_ID, InputConstants.KEY_F8, Widgets.class, true);
     }
 
     public static void show(String player, String profileId) {

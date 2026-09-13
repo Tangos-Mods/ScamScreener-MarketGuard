@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.hud;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.tangosHudLib.api.HudLibrary;
 import net.minecraft.ChatFormatting;
@@ -14,7 +15,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -211,7 +211,7 @@ public final class PlayerHudLayoutScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (layoutMenuOpen && event.key() == GLFW.GLFW_KEY_ESCAPE) {
+        if (layoutMenuOpen && event.isEscape()) {
             layoutMenuOpen = false;
             rebuildWidgets();
             return true;
@@ -262,7 +262,7 @@ public final class PlayerHudLayoutScreen extends Screen {
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            if (event.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) {
                 return false;
             }
             owner.screen.select(name);

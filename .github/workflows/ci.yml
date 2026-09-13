@@ -28,4 +28,4 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run test suite (all MC versions)
-        run: ./gradlew :26.1.2:test :26.2:test --stacktrace -Dorg.gradle.jvmargs="-Xmx4G"
+        run: ./gradlew :26.1.2:test :26.2:test :26.3:test --stacktrace -Dorg.gradle.jvmargs="-Xmx4G"

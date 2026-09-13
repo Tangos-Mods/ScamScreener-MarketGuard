@@ -1,5 +1,6 @@
 package eu.tango.scamscreener.marketguard.hud;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.screen.HudScreenGroup;
 import net.minecraft.client.Minecraft;
@@ -327,7 +328,7 @@ public final class HudEditorScreen extends Screen {
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            if (event.button() != 0) {
+            if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) {
                 return false;
             }
             owner.editor.beginDrag(this);

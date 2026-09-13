@@ -14,7 +14,7 @@ Die Karte zeigt ausschließlich Informationen zum aktuell erkannten Zielspieler.
 
 ## Ist-Zustand
 
-- HudLib ist für 26.1.2 und 26.2 lokal gebaut und wird als Jar-in-Jar in MarketGuard eingebettet. Spieler benötigen für diesen Dev-Build keine separate HudLib-Datei.
+- HudLib ist für 26.1.2, 26.2 und 26.3 lokal gebaut und wird als Jar-in-Jar in MarketGuard eingebettet. Spieler benötigen für diesen Dev-Build keine separate HudLib-Datei.
 - MarketGuard erkennt Spielerprofile über `<Spielername>'s Profile` und Trades über `You                  <Spielername>`. Die bekannten Titel und die BIN-Verkäufer-Lore sind zentral in `HypixelScreens` gehalten.
 - In einer BIN-Auktion wird die Karte ausschließlich geöffnet, wenn in Slot 13 eine eindeutige Lore-Zeile `Seller: <Minecraft-Name>` steht.
 - Die MarketGuard-API stellt zusätzlich `QUERY /api/v1/players` bereit. Sie liefert Spieler- und Profildaten pro Eintrag; ohne `profileId` wählt sie das von Hypixel als `selected` markierte Profil.
@@ -127,7 +127,7 @@ Wenn Spieler **mehrere benannte, speicherbare Layouts** erstellen und zwischen i
 
 ## Umsetzung in Etappen
 
-1. Erledigt: HudLib für 26.1.2 und 26.2 gebaut und lokal als Jar-in-Jar eingebunden. Fabric API bleibt eine externe Pflicht-Abhängigkeit.
+1. Erledigt: HudLib für 26.1.2, 26.2 und 26.3 gebaut und lokal als Jar-in-Jar eingebunden. Fabric API bleibt eine externe Pflicht-Abhängigkeit.
 2. Erledigt: QUERY-Contract, Rate-Limit, Teilfehlerdarstellung, asynchroner Abruf, UUID-basierter 60-Sekunden-Cache sowie API-Datenqualität (`source`, `fetchedAt`, `stale`).
 3. Erledigt: `Trade Check`-Karte, manuelle Teststeuerung und neutrale ScamScreener-Anzeige.
 4. Erledigt im Code: Profile, reale Trade-Titel und konservative BIN-Verkäufer-Erkennung; der Ingame-Gegencheck mit dem neu installierten Dev-JAR steht noch aus.
@@ -143,6 +143,6 @@ Wenn Spieler **mehrere benannte, speicherbare Layouts** erstellen und zwischen i
 
 ## Vorübergehende Jar-in-Jar-Einbindung
 
-Bis HudLib für 26.1.2 und 26.2 auf Modrinth Maven veröffentlicht ist, verwendet MarketGuard die lokal gebaute JAR aus dem benachbarten `TangosHudLib`-Repository und bettet sie mit Loom ein. Der 26.1.2-Dev-Build enthält HudLib unter `META-INF/jars/` und wurde als ZIP geprüft. Danach benötigen Spieler keine separate HudLib-Datei.
+Bis HudLib für 26.1.2, 26.2 und 26.3 auf Modrinth Maven veröffentlicht ist, verwendet MarketGuard die lokal gebaute JAR aus dem benachbarten `TangosHudLib`-Repository und bettet sie mit Loom ein. Der 26.1.2-Dev-Build enthält HudLib unter `META-INF/jars/` und wurde als ZIP geprüft. Danach benötigen Spieler keine separate HudLib-Datei.
 
 Die Einbindung in `build.gradle.kts` ist bewusst als TODO markiert. Nach der Veröffentlichung wird sie durch die Modrinth-Maven-Koordinate ersetzt. Fabric API bleibt dabei eine externe Pflicht-Abhängigkeit und wird nicht eingebettet.

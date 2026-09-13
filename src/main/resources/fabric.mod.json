@@ -24,7 +24,7 @@
   ],
   "accessWidener": "marketguard.accesswidener",
   "depends": {
-    "fabricloader": ">=0.19.2",
+    "fabricloader": ">=${loader_version}",
     "fabric-api": "*",
     "midnightlib": ">=1.9.3",
     "minecraft": "${minecraft}"

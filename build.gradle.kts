@@ -95,6 +95,10 @@ dependencies {
     val midnightLibVersion = when (sc.current.version) {
         "26.1.2" -> "1.9.3+26.1-fabric"
         "26.2" -> "1.9.3+26.2-fabric"
+        // MidnightLib has no 26.3 build yet. Its 26.2 build declares minecraft >=26.2 but is not binary-compatible
+        // with 26.3 (RenderPipeline moved from blaze3d to renderpearl, ConfirmLinkScreen.confirmLinkNow(String) is
+        // gone): MarketGuardConfig.getScreen works around the former. Drop both once a 26.3 build is published.
+        "26.3" -> "1.9.3+26.2-fabric"
         else -> throw GradleException("Unsupported MidnightLib target: ${sc.current.version}")
     }
     // TODO: Replace this temporary local Jar-in-Jar source with the HudLib Modrinth Maven dependency.
@@ -106,7 +110,8 @@ dependencies {
         throw GradleException("Missing local Tango's HudLib build: ${localHudLibJar.path}")
     }
 
-    minecraft("com.mojang:minecraft:${sc.current.version}")
+    // deps.minecraft lets a target build against a pre-release until the final version is published.
+    minecraft("com.mojang:minecraft:${findProperty("deps.minecraft") ?: sc.current.version}")
     implementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
     implementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
     compileOnly("org.projectlombok:lombok:${property("deps.lombok")}")
@@ -174,6 +179,12 @@ publishMods {
     }
 }
 
+// A target built against a pre-release (deps.minecraft) cannot be uploaded: neither platform lists its release tag yet.
+if (findProperty("deps.minecraft") != null) {
+    tasks.named("publishModrinth") { enabled = false }
+    tasks.named("publishCurseforge") { enabled = false }
+}
+
 tasks {
     val generateDevApiProperties = register<org.gradle.api.tasks.WriteProperties>("generateDevApiProperties") {
         destinationFile.set(devApiProperties)
@@ -219,6 +230,7 @@ tasks {
             "id" to project.property("mod.id"),
             "name" to project.property("mod.name"),
             "version" to project.property("mod.version"),
+            "loader_version" to project.property("deps.fabric_loader"),
             "minecraft" to project.property("mod.mc_dep")
         )
         inputs.properties(props)

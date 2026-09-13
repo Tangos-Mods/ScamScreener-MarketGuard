@@ -16,7 +16,6 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -29,8 +28,7 @@ public final class ProfitTrackerHud {
     public static void initialize() {
         toggleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "Profit Tracker Display",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_UNKNOWN,
+                InputConstants.UNKNOWN.getValue(),
                 KeyMapping.Category.MISC
         ));
         HudLibrary.registerWidgets(MarketGuard.MOD_ID, Widgets.class);
