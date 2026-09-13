@@ -106,7 +106,7 @@ public final class LowestBinData {
     }
 
     public static String findItemIdByName(String displayName) {
-        return SnapshotDataUtil.findItemIdByName(CACHE.cachedSnapshot(), displayName, LowestBinData::readItemName);
+        return CACHE.findItemIdByName(displayName, LowestBinData::readItemName);
     }
 
     public static CompletableFuture<Void> refreshAsyncIfNeeded() {

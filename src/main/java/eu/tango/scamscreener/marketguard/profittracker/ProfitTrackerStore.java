@@ -7,11 +7,14 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 final class ProfitTrackerStore {
     private static final int CURRENT_SCHEMA_VERSION = 5;
+    private static final long TRACKED_ENTRY_MAX_AGE_MS = 14L * 24 * 60 * 60 * 1000;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private ProfitTrackerStore() {}
@@ -25,8 +28,11 @@ final class ProfitTrackerStore {
             return new ProfitTrackerState();
         }
 
-        try (Reader reader = Files.newBufferedReader(path)) {
-            ProfitTrackerState state = GSON.fromJson(reader, ProfitTrackerState.class);
+        try {
+            ProfitTrackerState state;
+            try (Reader reader = Files.newBufferedReader(path)) {
+                state = GSON.fromJson(reader, ProfitTrackerState.class);
+            }
             if (state == null) {
                 return new ProfitTrackerState();
             }
@@ -66,6 +72,7 @@ final class ProfitTrackerStore {
                     }
                 }
             }
+            dropExpiredEntries(state);
             if (needsProfitMigration || needsBazaarCashflowMigration || needsSchemaUpgrade) {
                 save(path, state);
             }
@@ -83,18 +90,34 @@ final class ProfitTrackerStore {
     static boolean save(Path path, ProfitTrackerState state) {
         try {
             state.schemaVersion = CURRENT_SCHEMA_VERSION;
+            dropExpiredEntries(state);
             Path parent = path.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
 
-            try (Writer writer = Files.newBufferedWriter(path)) {
+            Path tempPath = path.resolveSibling(path.getFileName() + ".tmp");
+            try (Writer writer = Files.newBufferedWriter(tempPath)) {
                 GSON.toJson(state, writer);
+            }
+            try {
+                Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING);
             }
             return true;
         } catch (Exception e) {
             MarketGuard.LOGGER.warn("Failed to save profit tracker state to {}", path, e);
             return false;
+        }
+    }
+
+    private static void dropExpiredEntries(ProfitTrackerState state) {
+        long cutoff = System.currentTimeMillis() - TRACKED_ENTRY_MAX_AGE_MS;
+        for (ProfileProfitState profile : state.profiles.values()) {
+            profile.pendingAuctionListings.removeIf(listing -> listing.createdAtMs < cutoff);
+            profile.trackedBazaarPositions.removeIf(position -> position.acquiredAtMs < cutoff);
+            profile.trackedAuctionPositions.removeIf(position -> position.purchasedAtMs < cutoff);
         }
     }
 

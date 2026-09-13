@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -129,6 +130,41 @@ class BazaarDataTest {
         BazaarData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
 
         assertEquals("ENCHANTED_BREAD", BazaarData.findItemIdByName("  enchanted   bread "));
+    }
+
+    @Test
+    void findItemIdByNameIndexesSnapshotOnceUntilItIsReplaced() {
+        JsonObject snapshot = new JsonObject();
+        snapshot.add("ENCHANTED_BREAD", product("Enchanted Bread", 12.5, 10.0));
+        snapshot.add("GOLD_INGOT", product("Gold Ingot", 6.0, 5.0));
+        BazaarData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
+        AtomicInteger nameReads = new AtomicInteger();
+
+        for (int tick = 0; tick < 5; tick++) {
+            assertEquals("GOLD_INGOT", BazaarData.cache().findItemIdByName("gold ingot", product -> {
+                nameReads.incrementAndGet();
+                return product.get("item_name").getAsString();
+            }));
+        }
+
+        assertEquals(2, nameReads.get());
+
+        JsonObject replaced = new JsonObject();
+        replaced.add("ENCHANTED_GOLD", product("Gold Ingot", 60.0, 50.0));
+        BazaarData.cache().setSnapshotForTests(replaced, System.currentTimeMillis() + 60_000L);
+
+        assertEquals("ENCHANTED_GOLD", BazaarData.findItemIdByName("Gold Ingot"));
+        assertNull(BazaarData.findItemIdByName("Enchanted Bread"));
+    }
+
+    @Test
+    void findItemIdByNameKeepsFirstItemForDuplicateNames() {
+        JsonObject snapshot = new JsonObject();
+        snapshot.add("GOLD_INGOT", product("Gold Ingot", 6.0, 5.0));
+        snapshot.add("GOLD_INGOT_COPY", product("gold  ingot", 1.0, 1.0));
+        BazaarData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
+
+        assertEquals("GOLD_INGOT", BazaarData.findItemIdByName("Gold Ingot"));
     }
 
     @Test

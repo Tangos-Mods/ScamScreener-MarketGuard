@@ -3,7 +3,9 @@ package eu.tango.scamscreener.marketguard.data;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -12,12 +14,8 @@ final class SnapshotDataUtil {
 
     private SnapshotDataUtil() {}
 
-    static String findItemIdByName(JsonObject snapshot, String displayName, Function<JsonObject, String> itemNameReader) {
-        if (displayName == null || displayName.isBlank() || snapshot == null) {
-            return null;
-        }
-
-        String normalizedDisplayName = normalizeName(displayName);
+    static Map<String, String> indexItemIdsByName(JsonObject snapshot, Function<JsonObject, String> itemNameReader) {
+        Map<String, String> itemIdsByName = new HashMap<>();
         for (String itemId : snapshot.keySet()) {
             JsonElement entry = snapshot.get(itemId);
             if (entry == null || !entry.isJsonObject()) {
@@ -29,12 +27,10 @@ final class SnapshotDataUtil {
                 continue;
             }
 
-            if (normalizedDisplayName.equals(normalizeName(itemName))) {
-                return itemId;
-            }
+            itemIdsByName.putIfAbsent(normalizeName(itemName), itemId);
         }
 
-        return null;
+        return itemIdsByName;
     }
 
     static Throwable rootCause(Throwable throwable) {

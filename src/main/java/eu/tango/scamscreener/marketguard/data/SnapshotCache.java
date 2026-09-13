@@ -3,8 +3,10 @@ package eu.tango.scamscreener.marketguard.data;
 import com.google.gson.JsonObject;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 final class SnapshotCache {
     private final Object lock = new Object();
@@ -16,6 +18,7 @@ final class SnapshotCache {
     private volatile CompletableFuture<JsonObject> refreshInFlight;
     private volatile boolean lastRefreshAttemptFailed;
     private volatile long lastRefreshAttemptAtMs;
+    private volatile NameIndex nameIndex;
 
     SnapshotCache(long ttlMs, long retryDelayMs) {
         this.ttlMs = ttlMs;
@@ -23,6 +26,8 @@ final class SnapshotCache {
     }
 
     record View(JsonObject snapshot, boolean stale, boolean loading, boolean refreshFailed) {}
+
+    private record NameIndex(JsonObject snapshot, Map<String, String> itemIdsByName) {}
 
     @FunctionalInterface
     interface SyncFetcher {
@@ -57,6 +62,21 @@ final class SnapshotCache {
 
     CompletableFuture<JsonObject> refreshInFlight() {
         return refreshInFlight;
+    }
+
+    String findItemIdByName(String displayName, Function<JsonObject, String> itemNameReader) {
+        JsonObject snapshot = cachedSnapshot;
+        if (displayName == null || displayName.isBlank() || snapshot == null) {
+            return null;
+        }
+
+        NameIndex index = nameIndex;
+        if (index == null || index.snapshot() != snapshot) {
+            index = new NameIndex(snapshot, SnapshotDataUtil.indexItemIdsByName(snapshot, itemNameReader));
+            nameIndex = index;
+        }
+
+        return index.itemIdsByName().get(SnapshotDataUtil.normalizeName(displayName));
     }
 
     JsonObject getSnapshot(String name, SyncFetcher fetcher) throws Exception {
@@ -135,6 +155,7 @@ final class SnapshotCache {
             refreshInFlight = null;
             lastRefreshAttemptFailed = false;
             lastRefreshAttemptAtMs = 0L;
+            nameIndex = null;
         }
     }
 

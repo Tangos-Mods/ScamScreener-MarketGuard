@@ -1,11 +1,17 @@
 package eu.tango.scamscreener.marketguard.mixin;
 
+import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.spongepowered.asm.mixin.injection.Inject;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,6 +51,30 @@ class AuctionHouseMixinTest {
                 "FANCY_LEGGINGS",
                 invoke("resolveAuctionItemId", null, "Confirm Purchase")
         );
+    }
+
+    @Test
+    void hudSlotScrapingRunsOncePerTickInsteadOfPerFrame() {
+        List<String> injectedMethods = Arrays.stream(AuctionHouseMixin.class.getDeclaredMethods())
+                .map(method -> method.getAnnotation(Inject.class))
+                .filter(Objects::nonNull)
+                .flatMap(inject -> Arrays.stream(inject.method()))
+                .toList();
+
+        assertTrue(injectedMethods.contains("tick()V"));
+        assertFalse(injectedMethods.contains("extractContents"));
+    }
+
+    @Test
+    void itemSlotWorkIsSkippedWhileTheStackInstanceIsUnchanged() throws Exception {
+        AuctionHouseMixin mixin = new AuctionHouseMixin() {};
+        Method changed = AuctionHouseMixin.class.getDeclaredMethod("itemSlotStackChanged", ItemStack.class);
+        changed.setAccessible(true);
+
+        assertFalse((boolean) changed.invoke(mixin, (Object) null));
+        assertTrue((boolean) changed.invoke(mixin, ItemStack.EMPTY));
+        assertFalse((boolean) changed.invoke(mixin, ItemStack.EMPTY));
+        assertTrue((boolean) changed.invoke(mixin, (Object) null));
     }
 
     private static Object invoke(String methodName, Object... args) throws Exception {

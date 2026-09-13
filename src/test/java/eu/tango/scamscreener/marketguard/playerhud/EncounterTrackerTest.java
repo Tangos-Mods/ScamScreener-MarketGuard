@@ -7,9 +7,13 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class EncounterTrackerTest {
     private static final String LOCAL_PLAYER = "00000000-0000-0000-0000-000000000001";
@@ -50,6 +54,46 @@ class EncounterTrackerTest {
         EncounterTracker.observeLobbyForTests("mini123A", LOCAL_PLAYER, players);
 
         assertEquals(1, EncounterTracker.timesSeen(OTHER_PLAYER));
+    }
+
+    @Test
+    void skipsSqliteWhenLobbyAndPlayersAreUnchanged(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("encounters.db");
+        EncounterTracker.setStorePathForTests(path);
+        List<EncounterTracker.PlayerIdentity> players = List.of(
+                new EncounterTracker.PlayerIdentity(OTHER_PLAYER)
+        );
+
+        EncounterTracker.observeLobbyForTests("mini123A", LOCAL_PLAYER, players);
+        Files.delete(path);
+        EncounterTracker.observeLobbyForTests("mini123A", LOCAL_PLAYER, players);
+
+        assertFalse(Files.exists(path));
+        assertEquals(1, EncounterTracker.timesSeen(OTHER_PLAYER));
+    }
+
+    @Test
+    void retriesTheEncounterAfterAFailedWrite(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("encounters.db");
+        EncounterTracker.setStorePathForTests(path);
+        List<EncounterTracker.PlayerIdentity> players = List.of(
+                new EncounterTracker.PlayerIdentity(OTHER_PLAYER)
+        );
+
+        EncounterTracker.observeLobbyForTests("mini123A", LOCAL_PLAYER, players);
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath());
+             Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TRIGGER reject_encounters BEFORE INSERT ON encounters BEGIN SELECT RAISE(ABORT, 'locked'); END");
+        }
+        EncounterTracker.observeLobbyForTests("mini456B", LOCAL_PLAYER, players);
+        assertEquals(1, EncounterTracker.timesSeen(OTHER_PLAYER));
+
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath());
+             Statement statement = connection.createStatement()) {
+            statement.execute("DROP TRIGGER reject_encounters");
+        }
+        EncounterTracker.observeLobbyForTests("mini456B", LOCAL_PLAYER, players);
+        assertEquals(2, EncounterTracker.timesSeen(OTHER_PLAYER));
     }
 
     @Test

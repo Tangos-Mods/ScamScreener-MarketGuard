@@ -22,7 +22,6 @@ import net.minecraft.world.item.component.ItemLore;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -892,36 +891,8 @@ public final class ProfitTracker {
 
         if (kind.isBuy()) {
             profile.bazaarAllTimeProfit -= totalCoins;
-            profile.trackedBazaarPositions.add(new TrackedBazaarPosition(
-                    itemId,
-                    itemName,
-                    quantity,
-                    totalCoins,
-                    System.currentTimeMillis()
-            ));
-            return;
-        }
-
-        int remainingQuantity = quantity;
-        for (Iterator<TrackedBazaarPosition> iterator = profile.trackedBazaarPositions.iterator(); iterator.hasNext() && remainingQuantity > 0; ) {
-            TrackedBazaarPosition position = iterator.next();
-            if (!matchesItem(position.itemId, position.itemName, itemId, itemName) || position.remainingQuantity <= 0) {
-                continue;
-            }
-
-            int matchedQuantity = Math.min(remainingQuantity, position.remainingQuantity);
-            double matchedCost = position.remainingCost * matchedQuantity / position.remainingQuantity;
-            double matchedRevenue = totalCoins * matchedQuantity / quantity;
-            profile.bazaarAllTimeProfit += matchedRevenue;
-            position.remainingQuantity -= matchedQuantity;
-            position.remainingCost -= matchedCost;
-            remainingQuantity -= matchedQuantity;
-            if (position.remainingQuantity == 0) {
-                iterator.remove();
-            }
-        }
-        if (remainingQuantity > 0) {
-            profile.bazaarAllTimeProfit += totalCoins * remainingQuantity / quantity;
+        } else {
+            profile.bazaarAllTimeProfit += totalCoins;
         }
     }
 

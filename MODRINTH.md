@@ -22,10 +22,17 @@ First stable release of the 1.5.0 line. Everything below is new since 1.4.0.
 - The Player HUD keeps its `stale cache` warning and reports failed finance requests instead of claiming finance data.
 - Update notifications only appear when the listed release is newer than the installed version.
 - HUDs stay visible on Turkish/Azeri system locales, editor row order is kept per preset, and a HUD disabled on every screen stays disabled after a restart.
+- The Profit Tracker file is saved atomically, so a crash while saving no longer resets your all-time profits.
 - HUD widgets no longer waste their first line on template names such as `Compact`.
 - The Player HUD encounter count uses the same clear format in-game and in the HUD editor.
 - Player HUD requests through HTTP/1.1 proxies decode chunked responses correctly.
 - The UUID row stays visible in the Player HUD's `profile` preset.
+
+## Performance
+
+- Trade Guard, Minion, Forge, and Auction Price HUDs read the container once per tick instead of every frame, and item-name lookups no longer scan the whole Bazaar list.
+- Lobby encounters are recorded in the background instead of stalling the game every 10 seconds.
+- The Profit Tracker forgets auction positions and listings older than 14 days, so its file stays small.
 
 ## Changed
 

@@ -24,6 +24,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class EncounterTracker {
     private static final Object LOCK = new Object();
@@ -40,6 +42,9 @@ public final class EncounterTracker {
 
     private static Path storePath = defaultPath();
     private static Map<String, Integer> encounters = new HashMap<>();
+    private static String currentLobby;
+    private static Set<String> currentLobbyPlayers = new HashSet<>();
+    private static CompletableFuture<Void> pendingWrite = CompletableFuture.completedFuture(null);
     private static boolean databaseReady;
     private static long lastLocrawRequestAt;
     private static long awaitingLocrawUntil;
@@ -68,13 +73,15 @@ public final class EncounterTracker {
     }
 
     static void observeLobbyForTests(String lobby, String localUuid, List<PlayerIdentity> players) {
-        observeLobby(lobby, localUuid, players);
+        observeLobby(lobby, localUuid, players).join();
     }
 
     static void setStorePathForTests(Path path) {
         synchronized (LOCK) {
             storePath = path;
             encounters = new HashMap<>();
+            currentLobby = null;
+            currentLobbyPlayers = new HashSet<>();
             databaseReady = false;
         }
     }
@@ -89,6 +96,8 @@ public final class EncounterTracker {
         synchronized (LOCK) {
             storePath = defaultPath();
             encounters = new HashMap<>();
+            currentLobby = null;
+            currentLobbyPlayers = new HashSet<>();
             databaseReady = false;
             lastLocrawRequestAt = 0L;
             awaitingLocrawUntil = 0L;
@@ -150,54 +159,74 @@ public final class EncounterTracker {
         return true;
     }
 
-    private static void observeLobby(String lobby, String localUuid, List<PlayerIdentity> players) {
+    private static CompletableFuture<Void> observeLobby(String lobby, String localUuid, List<PlayerIdentity> players) {
         String normalizedLobby = lobby == null ? "" : lobby.trim();
         String localPlayer = normalizeUuid(localUuid);
         if (normalizedLobby.isEmpty() || localPlayer == null || players == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         synchronized (LOCK) {
             if (!ensureDatabase()) {
-                return;
+                return CompletableFuture.completedFuture(null);
             }
 
-            try (Connection connection = openConnection()) {
-                connection.setAutoCommit(false);
-                try {
-                    boolean changed = false;
-                    List<String> newlySeen = new ArrayList<>();
-                    if (!normalizedLobby.equals(currentLobby(connection))) {
-                        try (Statement statement = connection.createStatement()) {
-                            statement.executeUpdate("DELETE FROM encounter_lobby_players");
-                        }
-                        setCurrentLobby(connection, normalizedLobby);
-                        changed = true;
-                    }
-
-                    for (PlayerIdentity player : players) {
-                        String uuid = normalizeUuid(player.uuid());
-                        if (uuid == null || uuid.equals(localPlayer) || !markPlayerInLobby(connection, uuid)) {
-                            continue;
-                        }
-                        incrementEncounter(connection, uuid);
-                        newlySeen.add(uuid);
-                        changed = true;
-                    }
-                    if (changed) {
-                        connection.commit();
-                        for (String uuid : newlySeen) {
-                            encounters.merge(uuid, 1, Integer::sum);
-                        }
-                    } else {
-                        connection.rollback();
-                    }
-                } catch (Exception exception) {
-                    connection.rollback();
-                    throw exception;
+            boolean lobbyChanged = !normalizedLobby.equals(currentLobby);
+            if (lobbyChanged) {
+                currentLobby = normalizedLobby;
+                currentLobbyPlayers.clear();
+            }
+            List<String> newlySeen = new ArrayList<>();
+            for (PlayerIdentity player : players) {
+                String uuid = normalizeUuid(player.uuid());
+                if (uuid != null && !uuid.equals(localPlayer) && currentLobbyPlayers.add(uuid)) {
+                    newlySeen.add(uuid);
                 }
+            }
+            if (!lobbyChanged && newlySeen.isEmpty()) {
+                return pendingWrite;
+            }
+
+            pendingWrite = pendingWrite.thenRunAsync(() -> persistLobbyDelta(lobbyChanged, normalizedLobby, newlySeen));
+            return pendingWrite;
+        }
+    }
+
+    private static void persistLobbyDelta(boolean lobbyChanged, String lobby, List<String> newlySeen) {
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                if (lobbyChanged) {
+                    try (Statement statement = connection.createStatement()) {
+                        statement.executeUpdate("DELETE FROM encounter_lobby_players");
+                    }
+                    setCurrentLobby(connection, lobby);
+                }
+                for (String uuid : newlySeen) {
+                    markPlayerInLobby(connection, uuid);
+                    incrementEncounter(connection, uuid);
+                }
+                connection.commit();
             } catch (Exception exception) {
-                MarketGuard.LOGGER.warn("Failed to record lobby encounter in {}", storePath, exception);
+                connection.rollback();
+                throw exception;
+            }
+        } catch (Exception exception) {
+            MarketGuard.LOGGER.warn("Failed to record lobby encounter in {}", storePath, exception);
+            synchronized (LOCK) {
+                if (lobby.equals(currentLobby)) {
+                    currentLobbyPlayers.removeAll(newlySeen);
+                    if (lobbyChanged) {
+                        currentLobby = null;
+                    }
+                }
+            }
+            return;
+        }
+
+        synchronized (LOCK) {
+            for (String uuid : newlySeen) {
+                encounters.merge(uuid, 1, Integer::sum);
             }
         }
     }
@@ -233,15 +262,25 @@ public final class EncounterTracker {
     private static void load(Path path) {
         storePath = path;
         encounters = new HashMap<>();
+        currentLobby = null;
+        currentLobbyPlayers = new HashSet<>();
         databaseReady = false;
         if (!ensureDatabase()) {
             return;
         }
 
-        try (Connection connection = openConnection(); Statement statement = connection.createStatement(); ResultSet result = statement.executeQuery("SELECT uuid, times_seen FROM encounters")) {
-            while (result.next()) {
-                encounters.put(result.getString("uuid"), result.getInt("times_seen"));
+        try (Connection connection = openConnection(); Statement statement = connection.createStatement()) {
+            try (ResultSet result = statement.executeQuery("SELECT uuid, times_seen FROM encounters")) {
+                while (result.next()) {
+                    encounters.put(result.getString("uuid"), result.getInt("times_seen"));
+                }
             }
+            try (ResultSet result = statement.executeQuery("SELECT uuid FROM encounter_lobby_players")) {
+                while (result.next()) {
+                    currentLobbyPlayers.add(result.getString("uuid"));
+                }
+            }
+            currentLobby = currentLobby(connection);
         } catch (SQLException exception) {
             MarketGuard.LOGGER.warn("Failed to load encounter history from {}", storePath, exception);
         }
@@ -307,10 +346,10 @@ public final class EncounterTracker {
         }
     }
 
-    private static boolean markPlayerInLobby(Connection connection, String uuid) throws SQLException {
+    private static void markPlayerInLobby(Connection connection, String uuid) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("INSERT OR IGNORE INTO encounter_lobby_players(uuid) VALUES(?)")) {
             statement.setString(1, uuid);
-            return statement.executeUpdate() > 0;
+            statement.executeUpdate();
         }
     }
 

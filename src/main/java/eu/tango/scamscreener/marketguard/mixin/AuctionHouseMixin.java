@@ -15,7 +15,6 @@ import eu.tango.scamscreener.marketguard.screen.HypixelScreens;
 import eu.tango.scamscreener.marketguard.util.SkyBlockItemUtil;
 import eu.tango.scamscreener.marketguard.events.AuctionInteractEvent;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -43,6 +42,8 @@ public abstract class AuctionHouseMixin {
     private boolean marketguard$playerHudShown = false;
     @Unique
     private String marketguard$auctionPriceWidgetKey = null;
+    @Unique
+    private ItemStack marketguard$lastItemSlotStack = null;
 
     @Inject(method = "init", at = @At("TAIL"))
     private void prefetchLowestBinOnAuctionScreens(CallbackInfo ci) {
@@ -139,16 +140,25 @@ public abstract class AuctionHouseMixin {
         ForgeProfitHud.clear();
     }
 
-    @Inject(method = "extractContents", at = @At("HEAD"))
-    private void runDeferredAuctionBlacklistCheck(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks, CallbackInfo ci) {
+    // Once per client tick, not per rendered frame: the HUD widgets only refresh per tick anyway.
+    @Inject(method = "tick()V", at = @At("HEAD"))
+    private void runDeferredAuctionBlacklistCheck(CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>)(Object)this;
         String title = screen.getTitle() != null ? screen.getTitle().getString() : null;
+        AbstractContainerMenu menu = screen.getMenu();
         HudCustomization.setCurrentScreenTitle(title);
         showPlayerHudIfAvailable(screen, title);
+        TradeGuardHud.update(menu, title);
+        MinionProfitHud.update(menu, title);
+        ForgeProfitHud.update(menu, title);
+
+        int itemSlot = AuctionSlots.ITEM.getSlot();
+        ItemStack itemSlotStack = menu != null && menu.slots.size() > itemSlot ? menu.getSlot(itemSlot).getItem() : null;
+        if (!itemSlotStackChanged(itemSlotStack)) {
+            return;
+        }
+
         updateAuctionPriceWidget(screen, title);
-        TradeGuardHud.update(screen.getMenu(), title);
-        MinionProfitHud.update(screen.getMenu(), title);
-        ForgeProfitHud.update(screen.getMenu(), title);
         if (!isAuctionScreen(title)) {
             return;
         }
@@ -251,6 +261,15 @@ public abstract class AuctionHouseMixin {
         MarketGuard.debug("Player HUD opened context='{}' player='{}'", context, player);
         marketguard$playerHudShown = true;
         PlayerHud.show(player, null);
+    }
+
+    // Slot.set replaces the stack instance on every container update, so identity is enough to detect a change.
+    private boolean itemSlotStackChanged(ItemStack itemSlotStack) {
+        if (itemSlotStack == marketguard$lastItemSlotStack) {
+            return false;
+        }
+        marketguard$lastItemSlotStack = itemSlotStack;
+        return true;
     }
 
     private void updateAuctionPriceWidget(AbstractContainerScreen<?> screen, String title) {

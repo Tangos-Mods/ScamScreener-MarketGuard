@@ -86,7 +86,7 @@ public final class BazaarData {
     }
 
     public static String findItemIdByName(String displayName) {
-        return SnapshotDataUtil.findItemIdByName(CACHE.cachedSnapshot(), displayName, BazaarData::readItemName);
+        return CACHE.findItemIdByName(displayName, BazaarData::readItemName);
     }
 
     public static CompletableFuture<Void> refreshAsyncIfNeeded() {

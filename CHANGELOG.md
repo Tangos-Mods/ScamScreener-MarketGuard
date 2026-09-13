@@ -20,6 +20,15 @@ First stable release of the 1.5.0 line; see the beta sections below for everythi
 - Use `Locale.ROOT` for HUD screen keys so HUDs stay visible on Turkish/Azeri system locales.
 - Keep Player HUD rows of other presets when reordering rows in the editor.
 - Preserve an empty HUD screen list (HUD disabled everywhere) across restarts instead of restoring the defaults.
+- Write `profit_tracker.json` to a temp file and move it atomically, so a crash mid-save no longer wipes the all-time profits.
+
+## Performance
+
+- Scrape container slots for the Trade Guard, Minion, Forge, and Auction Price HUDs once per client tick (`AbstractContainerScreen.tick`) instead of once per rendered frame, and skip the BIN item-slot work while the slot's stack instance is unchanged.
+- Resolve Bazaar/Lowest BIN item ids by display name through a per-snapshot name index instead of scanning every product with a regex on each lookup.
+- Record lobby encounters off the render thread and skip the SQLite round-trip when the /locraw response reports the same lobby with no new players (previously every 10 s response opened a connection and ran one INSERT per tab-list entry on the render thread).
+- Record Bazaar profit as plain cash flow; the sell-side FIFO lot matching never changed the number and is gone, and buys no longer accumulate `TrackedBazaarPosition` entries.
+- Drop tracked auction positions, Bazaar positions, and pending auction listings older than 14 days on load and save so the store no longer grows without bound.
 
 ## Changed
 

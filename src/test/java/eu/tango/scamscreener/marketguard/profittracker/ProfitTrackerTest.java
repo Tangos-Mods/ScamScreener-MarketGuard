@@ -486,7 +486,7 @@ class ProfitTrackerTest {
     }
 
     @Test
-    void keepsProfitsAndPurchaseLotsSeparateForEachProfile(@TempDir Path tempDir) {
+    void keepsProfitsSeparateForEachProfile(@TempDir Path tempDir) {
         Path storePath = tempDir.resolve("profit_tracker.json");
         ProfitTracker.setStorePathForTests(storePath);
         ProfitTracker.setStateForTests(new ProfitTrackerState());
@@ -507,7 +507,28 @@ class ProfitTrackerTest {
         ProfitTrackerState loaded = ProfitTrackerStore.load(storePath);
         assertEquals(100.0, loaded.getProfile("orange").bazaarAllTimeProfit);
         assertEquals(-900.0, loaded.getProfile("raspberry").bazaarAllTimeProfit);
-        assertEquals(1, loaded.getProfile("raspberry").trackedBazaarPositions.size());
-        assertEquals(900.0, loaded.getProfile("raspberry").trackedBazaarPositions.getFirst().remainingCost);
+    }
+
+    @Test
+    void bazaarTradesAreRecordedAsPlainCashFlowWithoutPurchaseLots(@TempDir Path tempDir) {
+        Path storePath = tempDir.resolve("profit_tracker.json");
+        ProfitTracker.setStorePathForTests(storePath);
+        ProfitTracker.setStateForTests(new ProfitTrackerState());
+
+        ProfitTracker.recordBazaarInstantTrade(
+                "orange", BazaarTradeKind.INSTANT_BUY, "ENCHANTED_BREAD", "Enchanted Bread", 64, 12_800.0
+        );
+        ProfitTracker.recordBazaarInstantTrade(
+                "orange", BazaarTradeKind.INSTANT_SELL, "ENCHANTED_BREAD", "Enchanted Bread", 10, 3_000.0
+        );
+        ProfitTracker.recordBazaarInstantTrade(
+                "orange", BazaarTradeKind.INSTANT_SELL, "ENCHANTED_BREAD", "Enchanted Bread", 20, 6_000.0
+        );
+        ProfitTracker.recordBazaarInstantTrade(
+                "orange", BazaarTradeKind.INSTANT_SELL, null, "Iron Ingot", 5, 50.0
+        );
+
+        assertEquals(-3_750.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+        assertTrue(ProfitTrackerStore.load(storePath).getProfile("orange").trackedBazaarPositions.isEmpty());
     }
 }

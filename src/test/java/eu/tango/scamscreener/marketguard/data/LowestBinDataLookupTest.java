@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mockStatic;
 
@@ -149,6 +150,25 @@ class LowestBinDataLookupTest {
         LowestBinData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
 
         assertEquals("FANCY_LEGGINGS", LowestBinData.findItemIdByName(" fancy   leggings "));
+    }
+
+    @Test
+    void findItemIdByNameFollowsReplacedSnapshot() {
+        JsonObject snapshot = new JsonObject();
+        JsonObject leggings = product(123.0, null, "57ad19ca639f412daee5765f87874e35");
+        leggings.addProperty("item_name", "Fancy Leggings");
+        snapshot.add("FANCY_LEGGINGS", leggings);
+        LowestBinData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
+        assertEquals("FANCY_LEGGINGS", LowestBinData.findItemIdByName("Fancy Leggings"));
+
+        JsonObject replaced = new JsonObject();
+        JsonObject boots = product(45.0, null, "57ad19ca639f412daee5765f87874e35");
+        boots.addProperty("item_name", "Fancy Boots");
+        replaced.add("FANCY_BOOTS", boots);
+        LowestBinData.cache().setSnapshotForTests(replaced, System.currentTimeMillis() + 60_000L);
+
+        assertEquals("FANCY_BOOTS", LowestBinData.findItemIdByName("fancy boots"));
+        assertNull(LowestBinData.findItemIdByName("Fancy Leggings"));
     }
 
     private static JsonObject product(double price, Double average7d, String auctioneerUuid) {
