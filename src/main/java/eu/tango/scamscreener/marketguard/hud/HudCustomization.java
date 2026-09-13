@@ -170,38 +170,35 @@ public final class HudCustomization {
         return switch (hud) {
             case AUCTION_PRICE -> switch (row) {
                 case "item" -> Component.literal("6th Anniversary Barn Skin").withStyle(ChatFormatting.WHITE);
-                case "auction" -> Component.literal("This auction: 15.0m").withStyle(ChatFormatting.GOLD);
-                case "lowest_bin" -> Component.literal("Reference: 15.4m (high quality, 3 signals)").withStyle(ChatFormatting.GREEN);
-                case "difference" -> Component.literal("Difference to reference: -400.0k (-2.6%)").withStyle(ChatFormatting.GREEN);
-                case "advice" -> Component.literal("Price is near the reference.").withStyle(ChatFormatting.GRAY);
-                case "volatility" -> Component.literal("Price volatility: 7d avg is 20.0% above 30d avg.").withStyle(ChatFormatting.YELLOW);
-                case "liquidity" -> Component.literal("Bazaar liquidity risk: 400 units on thinner book side.").withStyle(ChatFormatting.YELLOW);
-                case "stale" -> Component.literal("Price data may be outdated.").withStyle(ChatFormatting.YELLOW);
+                case "auction" -> Component.literal("This auction: 15,000,000 coins").withStyle(ChatFormatting.GOLD);
+                case "lowest_bin" -> Component.literal("Market price: ~15,400,000 coins").withStyle(ChatFormatting.GRAY);
+                case "difference" -> Component.literal("-400,000 coins (-3%) vs. market").withStyle(ChatFormatting.GREEN);
+                case "advice" -> Component.literal("Fair price").withStyle(ChatFormatting.GREEN);
+                case "volatility" -> Component.literal("Price trend: rising 35% vs. last month").withStyle(ChatFormatting.YELLOW);
+                case "liquidity" -> Component.literal("Hard to resell on the Bazaar").withStyle(ChatFormatting.YELLOW);
+                case "stale" -> Component.literal("Prices may be outdated").withStyle(ChatFormatting.YELLOW);
                 default -> Component.literal(row);
             };
             case PLAYER -> switch (row) {
-                case "name" -> Component.literal("Name: TangoDev").withStyle(ChatFormatting.WHITE);
-                case "status" -> Component.literal("Status: available").withStyle(ChatFormatting.GREEN);
-                case "seen" -> Component.literal("Seen: 12 times").withStyle(ChatFormatting.GRAY);
-                case "first_join" -> Component.literal("First joined: 14.03.2021").withStyle(ChatFormatting.GRAY);
-                case "profile" -> Component.literal("Profile: Apple").withStyle(ChatFormatting.YELLOW);
-                case "wealth" -> Component.literal("Bank: 42.0m | Purse: 3.2m").withStyle(ChatFormatting.GOLD);
-                case "profile_value" -> Component.literal("Known profile value estimate: 231.4m coins").withStyle(ChatFormatting.GOLD);
-                case "value_coverage" -> Component.literal("Priced visible gear: 8/8 items").withStyle(ChatFormatting.GREEN);
-                case "value_missing" -> Component.literal("Not included: inventory, pets").withStyle(ChatFormatting.DARK_GRAY);
-                case "value_status" -> Component.literal("Estimate data: finance API + cached market prices").withStyle(ChatFormatting.DARK_GRAY);
-                case "museum" -> Component.literal("Museum: Value: 185.0m | Appraisal: available").withStyle(ChatFormatting.GOLD);
-                case "museum_items" -> Component.literal("Museum ownership: 143 donated exhibits | 6 special exhibits").withStyle(ChatFormatting.GRAY);
-                case "finance_status" -> Component.literal("Finance & museum: ok").withStyle(ChatFormatting.DARK_GRAY);
-                case "finance_history" -> Component.literal("Income, costs & ROI: unavailable").withStyle(ChatFormatting.DARK_GRAY);
-                case "armor" -> Component.literal("Armor: Necron's Armor").withStyle(ChatFormatting.LIGHT_PURPLE);
-                case "equipment" -> Component.literal("Equipment: 4/4 equipped").withStyle(ChatFormatting.BLUE);
-                case "pet" -> Component.literal("Active pet: Ender Dragon").withStyle(ChatFormatting.LIGHT_PURPLE);
-                case "skills" -> Component.literal("Skills: 48.7 avg").withStyle(ChatFormatting.AQUA);
-                case "uuid" -> Component.literal("UUID: 466d01f5...").withStyle(ChatFormatting.DARK_GRAY);
+                case "name" -> Component.literal("TangoDev").withStyle(ChatFormatting.WHITE);
+                case "seen" -> Component.literal("Seen 12 times").withStyle(ChatFormatting.DARK_GRAY);
                 case "scamscreener" -> Component.translatable("marketguard.hud.scamscreener.no_entry").withStyle(ChatFormatting.GRAY);
-                case "data" -> Component.literal("Data: live").withStyle(ChatFormatting.GREEN);
-                case "unavailable" -> Component.literal("Unavailable: museum").withStyle(ChatFormatting.GRAY);
+                case "status" -> Component.literal("Player not found").withStyle(ChatFormatting.GRAY);
+                case "wealth" -> Component.literal("Bank + purse: 45,200,000").withStyle(ChatFormatting.GOLD);
+                case "profile_value" -> Component.literal("Est. net worth: ~231,400,000").withStyle(ChatFormatting.GOLD);
+                case "first_join" -> Component.literal("First joined: 14.03.2021").withStyle(ChatFormatting.DARK_GRAY);
+                case "profile" -> Component.literal("Profile: Apple").withStyle(ChatFormatting.GRAY);
+                case "value_coverage" -> Component.literal("Priced gear: 8/8 items").withStyle(ChatFormatting.GREEN);
+                case "value_missing" -> Component.literal("Not included: inventory, pets").withStyle(ChatFormatting.DARK_GRAY);
+                case "value_status" -> Component.literal("Some values may be outdated").withStyle(ChatFormatting.YELLOW);
+                case "museum" -> Component.literal("Museum: 185,000,000, appraised").withStyle(ChatFormatting.GOLD);
+                case "museum_items" -> Component.literal("Museum: 143 exhibits (6 special)").withStyle(ChatFormatting.GRAY);
+                case "armor" -> Component.literal("Armor: Necron's Helmet, Necron's Chestplate +2").withStyle(ChatFormatting.GRAY);
+                case "equipment" -> Component.literal("Equipment: Lava Shell Necklace, Molten Cloak +2").withStyle(ChatFormatting.GRAY);
+                case "pet" -> Component.literal("Active pet: Legendary Ender Dragon").withStyle(ChatFormatting.LIGHT_PURPLE);
+                case "skills" -> Component.literal("Skills: Farming 40 | Mining 50 | Combat 45 | Avg 48.7 (9 skills)").withStyle(ChatFormatting.GREEN);
+                case "uuid" -> Component.literal("UUID: 466d01f5f2b84b4d9a2c1e8f7d3b5a90").withStyle(ChatFormatting.DARK_GRAY);
+                case "data" -> Component.literal("Updated 16:50").withStyle(ChatFormatting.DARK_GRAY);
                 default -> Component.literal(row);
             };
             case TRADE_GUARD -> switch (row) {
@@ -214,31 +211,29 @@ public final class HudCustomization {
                 default -> Component.literal(row);
             };
             case MINION_PROFIT -> switch (row) {
-                case "held_coins" -> Component.literal("Held Coins: 125.4k coins").withStyle(ChatFormatting.GOLD);
-                case "profit" -> Component.literal("Potential Bazaar profit: 2.8m coins").withStyle(ChatFormatting.GOLD);
-                case "forecast" -> Component.literal("Observed rate: 165.0k coins/h · 24h: 4.0m coins").withStyle(ChatFormatting.GREEN);
-                case "forecast_status" -> Component.literal("Basis: visible increase over 3m 20s.").withStyle(ChatFormatting.DARK_GRAY);
-                case "missing" -> Component.literal("1 stack is missing a Bazaar price.").withStyle(ChatFormatting.GRAY);
+                case "held_coins" -> Component.literal("Held coins: 125,400").withStyle(ChatFormatting.GOLD);
+                case "profit" -> Component.literal("Storage sells for: 2,800,000+").withStyle(ChatFormatting.GOLD);
+                case "missing" -> Component.literal("1 stack has no Bazaar price").withStyle(ChatFormatting.GRAY);
                 case "loading" -> Component.literal("Loading Bazaar prices...").withStyle(ChatFormatting.GRAY);
-                case "unavailable" -> Component.literal("Bazaar prices unavailable.").withStyle(ChatFormatting.RED);
-                case "stale" -> Component.literal("Bazaar prices may be outdated.").withStyle(ChatFormatting.YELLOW);
+                case "unavailable" -> Component.literal("Bazaar prices unavailable").withStyle(ChatFormatting.RED);
+                case "stale" -> Component.literal("Prices may be outdated").withStyle(ChatFormatting.YELLOW);
                 default -> Component.literal(row);
             };
             case FORGE_PROFIT -> switch (row) {
-                case "profit" -> Component.literal("Potential Bazaar profit: 4.6m").withStyle(ChatFormatting.GOLD);
-                case "missing" -> Component.literal("1 stack is missing a Bazaar price.").withStyle(ChatFormatting.GRAY);
+                case "profit" -> Component.literal("Forge items sell for: 4,600,000 coins").withStyle(ChatFormatting.GOLD);
+                case "missing" -> Component.literal("1 stack has no Bazaar price").withStyle(ChatFormatting.GRAY);
                 case "loading" -> Component.literal("Loading Bazaar prices...").withStyle(ChatFormatting.GRAY);
-                case "unavailable" -> Component.literal("Bazaar prices are unavailable.").withStyle(ChatFormatting.RED);
-                case "stale" -> Component.literal("Bazaar prices may be outdated.").withStyle(ChatFormatting.YELLOW);
+                case "unavailable" -> Component.literal("Bazaar prices unavailable").withStyle(ChatFormatting.RED);
+                case "stale" -> Component.literal("Prices may be outdated").withStyle(ChatFormatting.YELLOW);
                 default -> Component.literal(row);
             };
             case PROFIT_TRACKER -> switch (row) {
-                case "bazaar" -> Component.literal("Bazaar: +2.4m").withStyle(ChatFormatting.GREEN);
-                case "auction_house" -> Component.literal("Auction House: +8.1m").withStyle(ChatFormatting.GREEN);
-                case "minion" -> Component.literal("Minion: +1.7m").withStyle(ChatFormatting.GREEN);
-                case "interest" -> Component.literal("Interest: +250.0k").withStyle(ChatFormatting.GREEN);
-                case "allowance" -> Component.literal("Allowance: +50.0k").withStyle(ChatFormatting.GREEN);
-                case "total" -> Component.literal("Total: +12.5m").withStyle(ChatFormatting.GOLD);
+                case "bazaar" -> Component.literal("Bazaar: +2,400,000").withStyle(ChatFormatting.GREEN);
+                case "auction_house" -> Component.literal("Auction House: +8,100,000").withStyle(ChatFormatting.GREEN);
+                case "minion" -> Component.literal("Minion: +1,700,000").withStyle(ChatFormatting.GREEN);
+                case "interest" -> Component.literal("Interest: +250,000").withStyle(ChatFormatting.GREEN);
+                case "allowance" -> Component.literal("Allowance: +50,000").withStyle(ChatFormatting.GREEN);
+                case "total" -> Component.literal("Total: +12,500,000").withStyle(ChatFormatting.GOLD);
                 default -> Component.literal(row);
             };
         };
@@ -248,7 +243,9 @@ public final class HudCustomization {
         screens(hud).clear();
         screens(hud).addAll(defaultScreens(hud));
         rowValues(hud).clear();
-        rowValues(hud).addAll(defaultRows(hud));
+        rowValues(hud).addAll(hud == HudId.AUCTION_PRICE
+                ? List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale")
+                : defaultRows(hud));
         MarketGuardConfig.save();
     }
 
@@ -307,15 +304,14 @@ public final class HudCustomization {
 
     private static List<String> defaultRows(HudId hud) {
         return switch (hud) {
-            case AUCTION_PRICE -> List.of("item", "auction", "lowest_bin", "difference", "advice", "volatility", "liquidity", "stale");
+            case AUCTION_PRICE -> List.of("item", "auction", "lowest_bin", "advice", "difference", "volatility", "liquidity", "stale");
             case PLAYER -> List.of(
-                    "name", "status", "seen", "first_join", "profile", "wealth",
-                    "profile_value", "value_coverage", "value_missing", "value_status",
-                    "museum", "museum_items", "finance_status", "finance_history",
-                    "armor", "equipment", "pet", "skills", "uuid", "scamscreener", "data", "unavailable"
+                    "name", "seen", "scamscreener", "status", "wealth", "profile_value",
+                    "first_join", "profile", "value_coverage", "value_missing", "value_status",
+                    "museum", "museum_items", "armor", "equipment", "pet", "skills", "uuid", "data"
             );
             case TRADE_GUARD -> List.of("own_value", "partner_value", "difference", "unpriced", "data", "warning");
-            case MINION_PROFIT -> List.of("held_coins", "profit", "forecast", "forecast_status", "missing", "loading", "unavailable", "stale");
+            case MINION_PROFIT -> List.of("held_coins", "profit", "missing", "loading", "unavailable", "stale");
             case FORGE_PROFIT -> List.of("profit", "missing", "loading", "unavailable", "stale");
             case PROFIT_TRACKER -> List.of("bazaar", "auction_house", "minion", "interest", "allowance", "total");
         };
@@ -327,18 +323,8 @@ public final class HudCustomization {
         }
 
         return switch (MarketGuardConfig.getPlayerHudPreset()) {
-            case "trade" -> List.of("name", "status", "seen", "scamscreener");
-            case "compact" -> List.of(
-                    "name", "status", "seen", "wealth", "profile_value", "value_coverage", "value_status",
-                    "finance_status", "scamscreener", "data", "unavailable"
-            );
-            case "profile" -> List.of(
-                    "name", "status", "seen", "first_join", "profile", "wealth",
-                    "profile_value", "value_coverage", "value_missing", "value_status",
-                    "museum", "museum_items", "finance_status", "finance_history",
-                    "armor", "equipment", "pet", "skills", "uuid", "scamscreener", "data", "unavailable"
-            );
-            case "all" -> defaultRows(hud);
+            case "trade" -> List.of("name", "seen", "scamscreener", "status");
+            case "compact" -> List.of("name", "seen", "scamscreener", "status", "wealth", "profile_value");
             default -> defaultRows(hud);
         };
     }

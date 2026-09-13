@@ -1,9 +1,5 @@
 package eu.tango.scamscreener.marketguard.data;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-
 public final class MarketRiskEvaluator {
     private static final double AUCTION_AVERAGE_SHIFT_WARNING = 0.15;
     private static final double AUCTION_AVERAGE_SHIFT_HIGH = 0.30;
@@ -26,9 +22,9 @@ public final class MarketRiskEvaluator {
             return null;
         }
 
-        String direction = change > 0.0 ? "above" : "below";
+        String direction = change > 0.0 ? "rising" : "falling";
         return new Warning(
-                "Price volatility: 7d avg is " + percentage(Math.abs(change)) + " " + direction + " 30d avg.",
+                "Price trend: " + direction + " " + Math.round(Math.abs(change) * 100.0) + "% vs. last month",
                 Math.abs(change) >= AUCTION_AVERAGE_SHIFT_HIGH
         );
     }
@@ -38,13 +34,13 @@ public final class MarketRiskEvaluator {
             return null;
         }
 
-        List<String> reasons = new ArrayList<>();
+        boolean warning = false;
         boolean highRisk = false;
 
         if (Double.isFinite(product.buy()) && Double.isFinite(product.sell()) && product.buy() > 0.0 && product.sell() >= 0.0) {
             double spread = Math.max(0.0, product.buy() - product.sell()) / product.buy();
             if (spread >= BAZAAR_SPREAD_WARNING) {
-                reasons.add(percentage(spread) + " instant spread");
+                warning = true;
                 highRisk = spread >= BAZAAR_SPREAD_HIGH;
             }
         }
@@ -52,7 +48,7 @@ public final class MarketRiskEvaluator {
         if (nonNegative(product.buyVolume()) && nonNegative(product.sellVolume())) {
             long thinnerSide = Math.min(product.buyVolume(), product.sellVolume());
             if (thinnerSide < BAZAAR_BOOK_SIDE_WARNING) {
-                reasons.add(number(thinnerSide) + " units on thinner book side");
+                warning = true;
                 highRisk |= thinnerSide < BAZAAR_BOOK_SIDE_HIGH;
             }
         }
@@ -60,16 +56,16 @@ public final class MarketRiskEvaluator {
         if (nonNegative(product.buyMovingWeek()) && nonNegative(product.sellMovingWeek())) {
             long weeklyTurnover = Math.min(product.buyMovingWeek(), product.sellMovingWeek());
             if (weeklyTurnover < BAZAAR_WEEKLY_TURNOVER_WARNING) {
-                reasons.add(number(weeklyTurnover) + "/week on slower side");
+                warning = true;
                 highRisk |= weeklyTurnover < BAZAAR_WEEKLY_TURNOVER_HIGH;
             }
         }
 
-        if (reasons.isEmpty()) {
+        if (!warning) {
             return null;
         }
 
-        return new Warning("Bazaar liquidity risk: " + String.join(", ", reasons) + ".", highRisk);
+        return new Warning("Hard to resell on the Bazaar", highRisk);
     }
 
     private static boolean positive(Double value) {
@@ -78,14 +74,6 @@ public final class MarketRiskEvaluator {
 
     private static boolean nonNegative(Long value) {
         return value != null && value >= 0L;
-    }
-
-    private static String percentage(double value) {
-        return String.format(Locale.US, "%.1f%%", value * 100.0);
-    }
-
-    private static String number(long value) {
-        return String.format(Locale.US, "%,d", value);
     }
 
     public record Warning(String text, boolean highRisk) {}

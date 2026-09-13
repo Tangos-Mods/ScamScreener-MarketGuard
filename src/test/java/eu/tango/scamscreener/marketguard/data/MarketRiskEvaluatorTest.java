@@ -13,7 +13,7 @@ class MarketRiskEvaluatorTest {
     void warnsWhenShortAndLongAuctionAveragesDiverge() {
         MarketRiskEvaluator.Warning warning = MarketRiskEvaluator.auctionVolatility(1_200_000.0, 1_000_000.0);
 
-        assertEquals("Price volatility: 7d avg is 20.0% above 30d avg.", warning.text());
+        assertEquals("Price trend: rising 20% vs. last month", warning.text());
         assertFalse(warning.highRisk());
     }
 
@@ -21,7 +21,7 @@ class MarketRiskEvaluatorTest {
     void marksLargeDownwardAuctionMoveAsHighRisk() {
         MarketRiskEvaluator.Warning warning = MarketRiskEvaluator.auctionVolatility(650_000.0, 1_000_000.0);
 
-        assertEquals("Price volatility: 7d avg is 35.0% below 30d avg.", warning.text());
+        assertEquals("Price trend: falling 35% vs. last month", warning.text());
         assertTrue(warning.highRisk());
     }
 
@@ -32,7 +32,7 @@ class MarketRiskEvaluatorTest {
     }
 
     @Test
-    void combinesSpreadDepthAndTurnoverIntoOneLiquidityWarning() {
+    void warnsWhenBazaarBookIsThinAndSpreadIsWide() {
         BazaarData.Product product = new BazaarData.Product(
                 "Thin Item",
                 100.0,
@@ -45,11 +45,24 @@ class MarketRiskEvaluatorTest {
 
         MarketRiskEvaluator.Warning warning = MarketRiskEvaluator.bazaarLiquidity(product);
 
-        assertEquals(
-                "Bazaar liquidity risk: 20.0% instant spread, 400 units on thinner book side, 3,000/week on slower side.",
-                warning.text()
-        );
+        assertEquals("Hard to resell on the Bazaar", warning.text());
         assertTrue(warning.highRisk());
+    }
+
+    @Test
+    void mildSpreadIsAWarningButNotHighRisk() {
+        MarketRiskEvaluator.Warning warning = MarketRiskEvaluator.bazaarLiquidity(new BazaarData.Product(
+                "Wide Item",
+                100.0,
+                92.0,
+                50_000L,
+                60_000L,
+                500_000L,
+                600_000L
+        ));
+
+        assertEquals("Hard to resell on the Bazaar", warning.text());
+        assertFalse(warning.highRisk());
     }
 
     @Test

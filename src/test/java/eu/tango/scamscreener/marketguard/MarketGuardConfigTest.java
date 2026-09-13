@@ -104,6 +104,32 @@ class MarketGuardConfigTest {
     }
 
     @Test
+    void auctionPriceHudHidesTheDifferenceRowByDefault() {
+        assertEquals(List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale"),
+                MarketGuardConfig.auctionPriceHudRows);
+    }
+
+    @Test
+    void legacyAuctionPriceHudLayoutIsReplacedByTheNewDefaultOnce() {
+        MarketGuardConfig.auctionPriceHudRows = new ArrayList<>(List.of("item", "auction", "lowest_bin", "difference", "advice", "volatility", "liquidity", "stale"));
+
+        assertTrue(MarketGuardConfig.normalizeValues());
+        assertEquals(List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale"),
+                MarketGuardConfig.auctionPriceHudRows);
+
+        MarketGuardConfig.auctionPriceHudRows = new ArrayList<>(List.of("title", "item", "auction", "lowest_bin", "difference", "advice", "stale"));
+        assertTrue(MarketGuardConfig.normalizeValues());
+        assertEquals(List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale"),
+                MarketGuardConfig.auctionPriceHudRows);
+
+        MarketGuardConfig.auctionPriceHudRows = new ArrayList<>(List.of("item", "auction", "advice", "difference", "lowest_bin", "volatility", "liquidity", "stale"));
+        MarketGuardConfig.normalizeValues();
+        assertEquals(List.of("item", "auction", "advice", "difference", "lowest_bin", "volatility", "liquidity", "stale"),
+                MarketGuardConfig.auctionPriceHudRows);
+        MarketGuardConfig.auctionPriceHudRows = new ArrayList<>(List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale"));
+    }
+
+    @Test
     void playerHudPresetIsManagedByTheCustomPlayerHudEditor() throws Exception {
         Field field = MarketGuardConfig.class.getField("playerHudPreset");
 

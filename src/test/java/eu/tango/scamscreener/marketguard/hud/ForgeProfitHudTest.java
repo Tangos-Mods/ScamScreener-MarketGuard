@@ -37,7 +37,7 @@ class ForgeProfitHudTest {
         HudContent content = ForgeProfitHud.content(view, summary);
 
         assertEquals(82.0, summary.total());
-        assertTrue(lines(content).contains("Potential Bazaar profit: 82 coins"));
+        assertTrue(lines(content).contains("Forge items sell for: 82 coins"));
     }
 
     @Test
@@ -51,8 +51,23 @@ class ForgeProfitHudTest {
         HudContent content = ForgeProfitHud.content(view, summary);
 
         assertEquals(22.0, summary.total());
-        assertTrue(lines(content).contains("Known Bazaar profit: 22 coins"));
-        assertTrue(lines(content).contains("1 stack is missing a Bazaar price."));
+        assertTrue(lines(content).contains("Forge items sell for: 22 coins+"));
+        assertTrue(lines(content).contains("1 stack has no Bazaar price"));
+    }
+
+    @Test
+    void showsOnlyTheLoadingStateWhileNoPriceIsKnownYet() {
+        ForgeProfitHud.View view = new ForgeProfitHud.View(List.of(
+                new BazaarProfit.Item("REFINED_MITHRIL", "Refined Mithril", 2)
+        ));
+
+        HudContent loading = ForgeProfitHud.content(view, new BazaarProfit.Summary(0.0, 0, 1, false, true, false));
+        HudContent failed = ForgeProfitHud.content(view, new BazaarProfit.Summary(0.0, 0, 1, false, false, true));
+        HudContent empty = ForgeProfitHud.content(new ForgeProfitHud.View(List.of()), BazaarProfit.Summary.empty());
+
+        assertEquals(List.of("Loading Bazaar prices..."), lines(loading));
+        assertEquals(List.of("Bazaar prices unavailable"), lines(failed));
+        assertEquals(List.of("Forge is empty"), lines(empty));
     }
 
     @Test

@@ -19,13 +19,12 @@ class HudCustomizationTest {
         MarketGuardConfig.setPlayerHudPreset("trade");
         PlayerHud.setPreset("trade");
         MarketGuardConfig.auctionPriceHudScreens = new ArrayList<>(List.of("bin_view"));
-        MarketGuardConfig.auctionPriceHudRows = new ArrayList<>(List.of("item", "auction", "lowest_bin", "difference", "advice", "volatility", "liquidity", "stale"));
+        MarketGuardConfig.auctionPriceHudRows = new ArrayList<>(List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale"));
         MarketGuardConfig.playerHudScreens = new ArrayList<>(List.of("trade", "profile", "bin_view"));
         MarketGuardConfig.playerHudRows = new ArrayList<>(List.of(
-                "name", "status", "seen", "first_join", "profile", "wealth",
-                "profile_value", "value_coverage", "value_missing", "value_status",
-                "museum", "museum_items", "finance_status", "finance_history",
-                "armor", "equipment", "pet", "skills", "uuid", "scamscreener", "data", "unavailable"
+                "name", "seen", "scamscreener", "status", "wealth", "profile_value",
+                "first_join", "profile", "value_coverage", "value_missing", "value_status",
+                "museum", "museum_items", "armor", "equipment", "pet", "skills", "uuid", "data"
         ));
         MarketGuardConfig.tradeGuardHudScreens = new ArrayList<>(List.of("trade"));
         MarketGuardConfig.tradeGuardHudRows = new ArrayList<>(List.of("own_value", "partner_value", "difference", "unpriced", "data", "warning"));
@@ -44,17 +43,30 @@ class HudCustomizationTest {
 
     @Test
     void rowVisibilityAndOrderAreConfigurable() {
+        assertFalse(HudCustomization.rowEnabled(HudCustomization.HudId.AUCTION_PRICE, "difference"));
+
         HudCustomization.toggleRow(HudCustomization.HudId.AUCTION_PRICE, "difference");
         HudCustomization.moveRow(HudCustomization.HudId.AUCTION_PRICE, "advice", -3);
 
+        assertTrue(HudCustomization.rowEnabled(HudCustomization.HudId.AUCTION_PRICE, "difference"));
+        assertEquals(List.of("advice", "item", "auction", "lowest_bin", "volatility", "liquidity", "stale", "difference"),
+                HudCustomization.rows(HudCustomization.HudId.AUCTION_PRICE));
+    }
+
+    @Test
+    void resetRestoresTheShippedAuctionPriceLayoutWithTheDifferenceRowHidden() {
+        HudCustomization.toggleRow(HudCustomization.HudId.AUCTION_PRICE, "difference");
+        HudCustomization.moveRow(HudCustomization.HudId.AUCTION_PRICE, "advice", -3);
+
+        HudCustomization.reset(HudCustomization.HudId.AUCTION_PRICE);
+
         assertFalse(HudCustomization.rowEnabled(HudCustomization.HudId.AUCTION_PRICE, "difference"));
-        assertEquals(List.of("advice", "item", "auction", "lowest_bin", "volatility", "liquidity", "stale"),
+        assertEquals(List.of("item", "auction", "lowest_bin", "advice", "volatility", "liquidity", "stale"),
                 HudCustomization.rows(HudCustomization.HudId.AUCTION_PRICE));
     }
 
     @Test
     void dragAndDropMovesRowsToTheRequestedIndexAndKeepsVisibility() {
-        HudCustomization.toggleRow(HudCustomization.HudId.AUCTION_PRICE, "difference");
         HudCustomization.moveRowTo(HudCustomization.HudId.AUCTION_PRICE, "difference", 1);
 
         assertEquals(List.of("item", "!difference", "auction", "lowest_bin", "advice", "volatility", "liquidity", "stale"),
@@ -89,10 +101,10 @@ class HudCustomizationTest {
 
         MarketGuardConfig.setPlayerHudPreset("trade");
         PlayerHud.setPreset("trade");
-        HudCustomization.placeRow(HudCustomization.HudId.PLAYER, "seen", true, 1);
+        HudCustomization.placeRow(HudCustomization.HudId.PLAYER, "seen", true, 2);
 
-        assertEquals(List.of("name", "seen", "status", "scamscreener"), MarketGuardConfig.playerHudRows.subList(0, 4));
-        assertEquals(22, MarketGuardConfig.playerHudRows.size());
+        assertEquals(List.of("name", "scamscreener", "seen", "status"), MarketGuardConfig.playerHudRows.subList(0, 4));
+        assertEquals(19, MarketGuardConfig.playerHudRows.size());
         assertTrue(MarketGuardConfig.playerHudRows.contains("!uuid"));
         assertTrue(MarketGuardConfig.playerHudRows.contains("!museum_items"));
 
@@ -104,27 +116,52 @@ class HudCustomizationTest {
 
     @Test
     void editorRowsUseHudExamplesInsteadOfConfigurationLabels() {
-        assertEquals("This auction: 15.0m",
+        assertEquals("This auction: 15,000,000 coins",
                 HudCustomization.example(HudCustomization.HudId.AUCTION_PRICE, "auction").getString());
-        assertEquals("Bank: 42.0m | Purse: 3.2m",
+        assertEquals("Market price: ~15,400,000 coins",
+                HudCustomization.example(HudCustomization.HudId.AUCTION_PRICE, "lowest_bin").getString());
+        assertEquals("Bank + purse: 45,200,000",
                 HudCustomization.example(HudCustomization.HudId.PLAYER, "wealth").getString());
-        assertEquals("Total: +12.5m",
+        assertEquals("Total: +12,500,000",
                 HudCustomization.example(HudCustomization.HudId.PROFIT_TRACKER, "total").getString());
+        assertEquals("Storage sells for: 2,800,000+",
+                HudCustomization.example(HudCustomization.HudId.MINION_PROFIT, "profit").getString());
+    }
+
+    @Test
+    void minionProfitRowsNoLongerContainTheForecast() {
+        assertEquals(List.of("held_coins", "profit", "missing", "loading", "unavailable", "stale"),
+                HudCustomization.rows(HudCustomization.HudId.MINION_PROFIT));
     }
 
     @Test
     void playerPresetChangesTheAvailableRowsWithoutDiscardingConfiguration() {
         MarketGuardConfig.setPlayerHudPreset("compact");
         PlayerHud.setPreset("compact");
-        assertEquals(List.of(
-                        "name", "status", "seen", "wealth", "profile_value", "value_coverage", "value_status", "finance_status",
-                        "scamscreener", "data", "unavailable"
-                ),
+        assertEquals(List.of("name", "seen", "scamscreener", "status", "wealth", "profile_value"),
+                HudCustomization.rows(HudCustomization.HudId.PLAYER));
+
+        MarketGuardConfig.setPlayerHudPreset("trade");
+        PlayerHud.setPreset("trade");
+        assertEquals(List.of("name", "seen", "scamscreener", "status"),
                 HudCustomization.rows(HudCustomization.HudId.PLAYER));
 
         MarketGuardConfig.setPlayerHudPreset("all");
         PlayerHud.setPreset("all");
         assertTrue(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("armor"));
+        assertFalse(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("finance_history"));
+    }
+
+    @Test
+    void removedPlayerRowsInExistingConfigurationsAreIgnored() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        MarketGuardConfig.playerHudRows.addAll(0, List.of("finance_status", "finance_history", "!unavailable"));
+
+        List<String> rows = HudCustomization.rows(HudCustomization.HudId.PLAYER);
+
+        assertEquals("name", rows.getFirst());
+        assertTrue(rows.stream().noneMatch(row -> row.startsWith("finance_") || row.equals("unavailable")));
     }
 
     @Test

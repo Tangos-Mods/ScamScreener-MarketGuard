@@ -15,7 +15,7 @@ First stable release of the 1.5.0 line; see the beta sections below for everythi
 - Keep a partially claimed Bazaar buy order pending until it is fully claimed, and drop a cancelled unfilled order instead of letting it suppress the cost of the next identical order.
 - Use the non-notifying Lowest BIN lookup in the Trade Guard and in `MarketGuardApi.lookupCachedLowestBin`, so unrelated auctioneers no longer trigger blacklist chat notices.
 - Send Player API requests through `HttpClient` (hostname verification, chunked decoding) instead of a hand-rolled TLS socket.
-- Keep the `stale cache` warning in the Player HUD `data` row next to the source line, and surface failed finance requests as `Finance data: refresh failed`.
+- Keep the stale warning in the Player HUD `data` row (`Data may be outdated`) and surface failed finance requests as `Finance data unavailable` instead of claiming finance-based values.
 - Only announce a Modrinth update when the listed release is actually newer than the installed version.
 - Use `Locale.ROOT` for HUD screen keys so HUDs stay visible on Turkish/Azeri system locales.
 - Keep Player HUD rows of other presets when reordering rows in the editor.
@@ -32,6 +32,10 @@ First stable release of the 1.5.0 line; see the beta sections below for everythi
 
 ## Changed
 
+- Rewrite the Auction Price HUD lines: `Market price: ~X` (yellow with `(few recent sales)` for a low-quality reference), one `advice` verdict line driven by the configured over-/underbidding thresholds (`Roughly ...` and never red for low-quality references), the `difference` row hidden by default (`!difference`; configs still holding the old shipped layout are migrated once), price-trend and resale warnings only when `MarketRiskEvaluator` reports high risk.
+- Rewrite the Player HUD lines and presets: `trade` = name, seen count, blacklist status (+ status line only when the player cannot be resolved); `compact` adds `wealth` and `profile_value`; `partial` no longer produces a line; rows `finance_status`, `finance_history` and `unavailable` were removed (dropped from existing configs by `normalizeRows`); `data` shows `Updated HH:mm` or `Data may be outdated`.
+- Remove the Minion production forecast (`Observation`/`Forecast`, rows `forecast`/`forecast_status`, the `marketguard.hud.minion.forecast.*` keys, `BazaarProfit.valueDelta`); the HUD shows `Held coins`, `Storage sells for` (`+` when stacks are unpriced) and the unpriced-stack count. Forge HUD wording aligned.
+- Rename the HUD editor row labels to plain terms in both languages and drop the unused `marketguard.hud.row.title` and `marketguard.hud.scamscreener.installed` keys.
 - Publish as a stable release instead of a beta.
 - Replace the static `MarketGuardApi.lookupCached...`/`request...` methods with the entrypoint instance methods of the same name.
 - `MarketGuardConfig.save()` and `ProfitTrackerHud.setDisplayEnabled()` are `void`; MidnightLib never reports write failures, so the unreachable rollback branches were removed.

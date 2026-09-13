@@ -1,7 +1,9 @@
 package eu.tango.scamscreener.marketguard.hud;
 
 import eu.tango.scamscreener.marketguard.MarketGuard;
+import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionReferencePrice;
+import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
 import eu.tango.scamscreener.marketguard.data.BazaarData;
 import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.data.MarketRiskEvaluator;
@@ -12,14 +14,12 @@ import eu.tango.tangosHudLib.api.HudWidget;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
-import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
 public final class AuctionPriceHud {
-    private static final double CAUTION_OVER_REFERENCE = 0.05;
-    private static final double EXTREME_DISCOUNT_BELOW_REFERENCE = 0.20;
+    private static final double FAIR_ABOVE_MARKET = 0.05;
     private static final long LOWEST_BIN_LOOKUP_INTERVAL_MS = 1_000L;
 
     private static volatile View view = View.hidden();
@@ -70,7 +70,7 @@ public final class AuctionPriceHud {
 
         LowestBinData.LookupResult lowestBin = current.lowestBin();
         if (lowestBin == null) {
-            lines.put("lowest_bin", Component.literal("Loading reference price...").withStyle(ChatFormatting.GRAY));
+            lines.put("lowest_bin", Component.literal("Loading market price...").withStyle(ChatFormatting.GRAY));
             return build(lines);
         }
 
@@ -82,42 +82,55 @@ public final class AuctionPriceHud {
         if (selected.isEmpty()) {
             String status;
             if (lowestBin.loading()) {
-                status = "Loading reference price...";
+                status = "Loading market price...";
             } else if (lowestBin.refreshFailed()) {
-                status = "Reference price unavailable.";
+                status = "Market price unavailable";
             } else {
-                status = "No reference price data for this item.";
+                status = "No market price for this item";
             }
             lines.put("lowest_bin", Component.literal(status).withStyle(ChatFormatting.GRAY));
         } else {
             AuctionReferencePrice reference = selected.orElseThrow();
-            lines.put("lowest_bin", Component.literal(
-                    "Reference: " + coins(reference.value()) + " (" + qualityLabel(reference) + ")"
-            ).withStyle(qualityColor(reference.quality())));
+            boolean reliable = reference.safeForProtection();
+            lines.put("lowest_bin", Component.literal("Market price: ~" + coins(reference.value()) + (reliable ? "" : " (few recent sales)"))
+                    .withStyle(reliable ? ChatFormatting.GRAY : ChatFormatting.YELLOW));
 
             double difference = current.auctionPrice() - reference.value();
             double differencePercentage = difference / reference.value();
-            lines.put("difference", Component.literal("Difference to reference: " + signedCoins(difference) + " (" + signedPercentage(differencePercentage) + ")")
-                    .withStyle(difference > 0.0 ? ChatFormatting.RED : difference < 0.0 ? ChatFormatting.GREEN : ChatFormatting.GRAY));
-
-            if (!reference.safeForProtection()) {
-                lines.put("advice", Component.literal("Price advice limited: low data quality.").withStyle(ChatFormatting.YELLOW));
-            } else if (differencePercentage >= CAUTION_OVER_REFERENCE) {
-                lines.put("advice", Component.literal("Caution: " + percentage(differencePercentage) + " above reference.")
-                        .withStyle(ChatFormatting.YELLOW));
-            } else if (differencePercentage <= -EXTREME_DISCOUNT_BELOW_REFERENCE) {
-                lines.put("advice", Component.literal("Great deal: " + percentage(-differencePercentage) + " below reference.")
-                        .withStyle(ChatFormatting.GREEN));
-            } else {
-                lines.put("advice", Component.literal("Price is near the reference.").withStyle(ChatFormatting.GRAY));
-            }
+            Component verdict = verdict(differencePercentage, reliable);
+            lines.put("advice", verdict);
+            lines.put("difference", Component.literal(signedCoins(difference) + " (" + signedPercentage(differencePercentage) + ") vs. market")
+                    .withStyle(verdict.getStyle()));
         }
 
         addRiskLines(lines, current.itemId(), lowestBin);
         if (lowestBin.stale()) {
-            lines.put("stale", Component.literal("Price data may be outdated.").withStyle(ChatFormatting.YELLOW));
+            lines.put("stale", Component.literal("Prices may be outdated").withStyle(ChatFormatting.YELLOW));
         }
         return build(lines);
+    }
+
+    private static Component verdict(double differencePercentage, boolean reliable) {
+        int overThreshold = AuctionOverbidding.isEnabled() ? AuctionOverbidding.getThreshold() : AuctionOverbidding.DEFAULT_THRESHOLD;
+        int underThreshold = AuctionUnderbidding.isEnabled() ? AuctionUnderbidding.getThreshold() : AuctionUnderbidding.DEFAULT_THRESHOLD;
+        double over = overThreshold / 100.0 - 1.0;
+        double under = 1.0 - underThreshold / 100.0;
+        String percent = percentage(Math.abs(differencePercentage));
+        if (differencePercentage <= -under) {
+            return reliable
+                    ? Component.literal("Good deal: " + percent + " below market").withStyle(ChatFormatting.GREEN)
+                    : Component.literal("Roughly " + percent + " below market").withStyle(ChatFormatting.YELLOW);
+        }
+        if (differencePercentage < Math.min(FAIR_ABOVE_MARKET, over)) {
+            return Component.literal("Fair price").withStyle(ChatFormatting.GREEN);
+        }
+        if (!reliable) {
+            return Component.literal("Roughly " + percent + " above market").withStyle(ChatFormatting.YELLOW);
+        }
+        if (differencePercentage >= over) {
+            return Component.literal(percent + " above market - overpriced").withStyle(ChatFormatting.RED);
+        }
+        return Component.literal(percent + " above market").withStyle(ChatFormatting.YELLOW);
     }
 
     private static void addRiskLines(Map<String, Component> lines, String itemId, LowestBinData.LookupResult lowestBin) {
@@ -125,20 +138,16 @@ public final class AuctionPriceHud {
                 lowestBin.average7d(),
                 lowestBin.average30d()
         );
-        if (volatility != null) {
-            lines.put("volatility", warningLine(volatility, false));
+        if (volatility != null && volatility.highRisk()) {
+            lines.put("volatility", Component.literal(volatility.text()).withStyle(ChatFormatting.YELLOW));
         }
 
         BazaarData.LookupResult bazaar = BazaarData.lookupProduct(itemId);
         MarketRiskEvaluator.Warning liquidity = MarketRiskEvaluator.bazaarLiquidity(bazaar.value());
-        if (liquidity != null) {
-            lines.put("liquidity", warningLine(liquidity, bazaar.stale()));
+        if (liquidity != null && liquidity.highRisk()) {
+            String text = liquidity.text() + (bazaar.stale() ? " (Bazaar data may be outdated)" : "");
+            lines.put("liquidity", Component.literal(text).withStyle(ChatFormatting.YELLOW));
         }
-    }
-
-    private static Component warningLine(MarketRiskEvaluator.Warning warning, boolean stale) {
-        String text = warning.text() + (stale ? " Bazaar data may be outdated." : "");
-        return Component.literal(text).withStyle(warning.highRisk() ? ChatFormatting.RED : ChatFormatting.YELLOW);
     }
 
     private static HudContent build(Map<String, Component> lines) {
@@ -160,24 +169,11 @@ public final class AuctionPriceHud {
     }
 
     private static String percentage(double value) {
-        return String.format(Locale.US, "%.1f%%", value * 100.0);
+        return Math.round(value * 100.0) + "%";
     }
 
     private static String signedPercentage(double value) {
         return (value > 0.0 ? "+" : value < 0.0 ? "-" : "") + percentage(Math.abs(value));
-    }
-
-    private static String qualityLabel(AuctionReferencePrice reference) {
-        String signals = reference.signalCount() == 1 ? "1 signal" : reference.signalCount() + " signals";
-        return reference.quality().name().toLowerCase(Locale.ROOT) + " quality, " + signals;
-    }
-
-    private static ChatFormatting qualityColor(AuctionReferencePrice.Quality quality) {
-        return switch (quality) {
-            case HIGH -> ChatFormatting.GREEN;
-            case MEDIUM -> ChatFormatting.YELLOW;
-            case LOW -> ChatFormatting.RED;
-        };
     }
 
     record View(String itemId, String displayName, double auctionPrice, LowestBinData.LookupResult lowestBin) {

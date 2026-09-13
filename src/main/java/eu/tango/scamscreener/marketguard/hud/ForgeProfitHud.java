@@ -75,25 +75,26 @@ public final class ForgeProfitHud {
 
         Map<String, Component> lines = new LinkedHashMap<>();
         if (current.items().isEmpty()) {
-            lines.put("profit", Component.literal("No items in Forge slots.").withStyle(ChatFormatting.GRAY));
+            lines.put("profit", Component.literal("Forge is empty").withStyle(ChatFormatting.GRAY));
         }
 
         if (summary.pricedStacks() > 0) {
-            String label = summary.missingStacks() == 0 ? "Potential Bazaar profit: " : "Known Bazaar profit: ";
-            lines.put("profit", Component.literal(label + coins(summary.total())).withStyle(ChatFormatting.GOLD));
+            String suffix = summary.missingStacks() == 0 ? "" : "+";
+            lines.put("profit", Component.literal("Forge items sell for: " + coins(summary.total()) + suffix).withStyle(ChatFormatting.GOLD));
         }
-        if (summary.missingStacks() > 0) {
-            String suffix = summary.missingStacks() == 1 ? " stack is" : " stacks are";
-            lines.put("missing", Component.literal(summary.missingStacks() + suffix + " missing a Bazaar price.")
+        boolean noPricesYet = summary.pricedStacks() == 0 && (summary.loading() || summary.refreshFailed());
+        if (summary.missingStacks() > 0 && !noPricesYet) {
+            String verb = summary.missingStacks() == 1 ? " stack has" : " stacks have";
+            lines.put("missing", Component.literal(summary.missingStacks() + verb + " no Bazaar price")
                     .withStyle(ChatFormatting.GRAY));
         }
-        if (summary.loading() && summary.pricedStacks() == 0) {
+        if (noPricesYet && summary.loading()) {
             lines.put("loading", Component.literal("Loading Bazaar prices...").withStyle(ChatFormatting.GRAY));
-        } else if (summary.refreshFailed() && summary.pricedStacks() == 0) {
-            lines.put("unavailable", Component.literal("Bazaar prices are unavailable.").withStyle(ChatFormatting.RED));
+        } else if (noPricesYet) {
+            lines.put("unavailable", Component.literal("Bazaar prices unavailable").withStyle(ChatFormatting.RED));
         }
         if (summary.stale()) {
-            lines.put("stale", Component.literal("Bazaar prices may be outdated.").withStyle(ChatFormatting.YELLOW));
+            lines.put("stale", Component.literal("Prices may be outdated").withStyle(ChatFormatting.YELLOW));
         }
         HudContent.Builder content = HudContent.builder();
         boolean added = false;

@@ -9,6 +9,7 @@ import eu.tango.scamscreener.marketguard.data.LowestBinData;
 import eu.tango.scamscreener.marketguard.playerhud.EncounterTracker;
 import eu.tango.scamscreener.marketguard.playerhud.PlayerFinanceData;
 import eu.tango.tangosHudLib.api.HudContent;
+import net.fabricmc.loader.api.FabricLoader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -20,8 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
 class PlayerHudTest {
     @AfterEach
@@ -29,21 +32,61 @@ class PlayerHudTest {
         PlayerHud.resetForTests();
         MarketGuardConfig.setPlayerHudPreset("trade");
         MarketGuardConfig.playerHudRows = new ArrayList<>(List.of(
-                "name", "status", "seen", "first_join", "profile", "wealth",
-                "profile_value", "value_coverage", "value_missing", "value_status",
-                "museum", "museum_items", "finance_status", "finance_history",
-                "armor", "equipment", "pet", "skills", "uuid", "scamscreener", "data", "unavailable"
+                "name", "seen", "scamscreener", "status", "wealth", "profile_value",
+                "first_join", "profile", "value_coverage", "value_missing", "value_status",
+                "museum", "museum_items", "armor", "equipment", "pet", "skills", "uuid", "data"
         ));
     }
 
     @Test
-    void showsNeutralStatusForEveryNonSuccessfulPlayerResult() {
+    void showsAStatusOnlyWhenThePlayerCouldNotBeResolved() {
         assertNull(PlayerHud.statusMessage("ok"));
-        assertEquals("Player data is partial", PlayerHud.statusMessage("partial"));
+        assertNull(PlayerHud.statusMessage("partial"));
         assertEquals("Player not found", PlayerHud.statusMessage("not_found"));
         assertEquals("SkyBlock profile not found", PlayerHud.statusMessage("profile_not_found"));
         assertEquals("SkyBlock profile unavailable", PlayerHud.statusMessage("profile_unavailable"));
         assertEquals("Player data unavailable", PlayerHud.statusMessage("unavailable"));
+    }
+
+    @Test
+    void partialPlayerDataShowsNoStatusLine() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        JsonObject player = new JsonObject();
+        player.addProperty("status", "partial");
+        player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
+        player.addProperty("name", "Pankraz01");
+
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                .lines().stream().map(line -> line.getString()).toList();
+
+        assertEquals("Pankraz01", lines.getFirst());
+        assertTrue(lines.stream().noneMatch(line -> line.contains("partial") || line.contains("unavailable")));
+    }
+
+    @Test
+    void fallsBackToTheRequestedNameInsteadOfTheUuidWhenTheApiOmitsTheName() {
+        JsonObject player = new JsonObject();
+        player.addProperty("status", "ok");
+        player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
+
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                .lines().stream().map(line -> line.getString()).toList();
+
+        assertEquals("Pankraz01", lines.getFirst());
+    }
+
+    @Test
+    void wordsTheSeenCountForFirstSingleAndRepeatedEncounters() {
+        try (MockedStatic<EncounterTracker> encounters = mockStatic(EncounterTracker.class)) {
+            encounters.when(() -> EncounterTracker.timesSeen("a")).thenReturn(0);
+            encounters.when(() -> EncounterTracker.timesSeen("b")).thenReturn(1);
+            encounters.when(() -> EncounterTracker.timesSeen("c")).thenReturn(3);
+
+            assertEquals("Never seen before", PlayerHud.seenSummary("a"));
+            assertEquals("Seen once", PlayerHud.seenSummary("b"));
+            assertEquals("Seen 3 times", PlayerHud.seenSummary("c"));
+        }
     }
 
     @Test
@@ -61,50 +104,73 @@ class PlayerHudTest {
             List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
                     .lines().stream().map(line -> line.getString()).toList();
 
-            assertEquals("Pankraz01", lines.getFirst());
-            assertTrue(lines.contains("Seen: 12 times"));
-            assertFalse(lines.contains("Compact"));
+            assertEquals(List.of("Pankraz01", "Seen 12 times"), lines);
         }
     }
 
     @Test
-    void showsOnlyApiDataQualityActuallyProvidedByTheResponse() {
-        JsonObject hypixel = new JsonObject();
-        hypixel.addProperty("source", "hypixel");
-        hypixel.addProperty("fetchedAt", 1_715_478_978_620L);
-        assertEquals("Hypixel API", PlayerHud.dataQuality(hypixel).split(" • ")[0]);
+    void showsTheBlacklistWarningOnlyWhenScamScreenerIsInstalled() {
+        JsonObject player = new JsonObject();
+        player.addProperty("status", "ok");
+        player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
+        player.addProperty("name", "Pankraz01");
 
-        JsonObject mojang = new JsonObject();
-        mojang.addProperty("source", "mojang");
-        assertEquals("Mojang API", PlayerHud.dataQuality(mojang));
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, true, false)
+                .lines().stream().map(line -> line.getString()).toList();
+        assertTrue(lines.stream().noneMatch(line -> line.startsWith("marketguard.hud.scamscreener.")));
 
-        assertNull(PlayerHud.dataQuality(new JsonObject()));
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, true, false)
+                .lines().stream().map(line -> line.getString()).toList();
+        assertTrue(lines.contains("marketguard.hud.scamscreener.not_installed"));
+
+        try (MockedStatic<FabricLoader> fabric = mockStatic(FabricLoader.class)) {
+            FabricLoader loader = mock(FabricLoader.class);
+            when(loader.isModLoaded("scamscreener")).thenReturn(true);
+            fabric.when(FabricLoader::getInstance).thenReturn(loader);
+
+            lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, true, false)
+                    .lines().stream().map(line -> line.getString()).toList();
+            assertTrue(lines.contains("marketguard.hud.scamscreener.match"));
+
+            lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                    .lines().stream().map(line -> line.getString()).toList();
+            assertTrue(lines.contains("marketguard.hud.scamscreener.no_entry"));
+        }
     }
 
     @Test
-    void keepsTheStaleCacheWarningNextToTheDataSource() {
+    void showsOnlyTheUpdateTimeActuallyProvidedByTheResponse() {
+        JsonObject player = new JsonObject();
+        player.addProperty("fetchedAt", 1_715_478_978_620L);
+        assertTrue(PlayerHud.updatedAt(player).matches("Updated \\d\\d:\\d\\d"));
+
+        assertNull(PlayerHud.updatedAt(new JsonObject()));
+    }
+
+    @Test
+    void replacesTheUpdateTimeWithAWarningForStaleData() {
         MarketGuardConfig.setPlayerHudPreset("all");
         PlayerHud.setPreset("all");
         JsonObject player = new JsonObject();
         player.addProperty("status", "ok");
         player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
         player.addProperty("name", "Pankraz01");
-        player.addProperty("source", "mojang");
+        player.addProperty("fetchedAt", 1_715_478_978_620L);
 
-        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, true)
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
                 .lines().stream().map(line -> line.getString()).toList();
+        assertTrue(lines.stream().anyMatch(line -> line.startsWith("Updated ")));
 
-        assertTrue(lines.contains("Data: Mojang API (stale cache)"));
-
-        player.remove("source");
         lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, true)
                 .lines().stream().map(line -> line.getString()).toList();
-
-        assertTrue(lines.contains("Data: stale cache"));
+        assertTrue(lines.contains("Data may be outdated"));
+        assertTrue(lines.stream().noneMatch(line -> line.startsWith("Updated ")));
     }
 
     @Test
-    void showsFailedFinanceRefreshInsteadOfClaimingFinanceApiData() {
+    void showsFailedFinanceRefreshWithoutANetWorthLine() {
         MarketGuardConfig.setPlayerHudPreset("all");
         PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
@@ -113,8 +179,35 @@ class PlayerHudTest {
         List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
                 .lines().stream().map(line -> line.getString()).toList();
 
-        assertTrue(lines.contains("Finance data: refresh failed"));
-        assertFalse(lines.contains("Estimate basis: server-known finance values"));
+        assertTrue(lines.contains("Finance data unavailable"));
+        assertTrue(lines.stream().noneMatch(line -> line.startsWith("Est. net worth") || line.startsWith("Not included")));
+    }
+
+    @Test
+    void showsLoadingAndOutdatedFinanceDataAsWarnings() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        JsonObject player = playerWithProfileIds();
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(null, false, true, false));
+
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                .lines().stream().map(line -> line.getString()).toList();
+        assertTrue(lines.contains("Loading finance data..."));
+
+        PlayerFinanceData.Museum museum = new PlayerFinanceData.Museum(25_000_000.0, null, List.of(), 2, List.of(), 0);
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(
+                financeResponse("ok", 11_000_000.0, museum, List.of()),
+                true,
+                false,
+                false
+        ));
+
+        lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                .lines().stream().map(line -> line.getString()).toList();
+        assertTrue(lines.contains("Est. net worth: ~11,000,000"));
+        assertTrue(lines.contains("Museum: 25,000,000"));
+        assertTrue(lines.contains("Museum: 2 exhibits (0 special)"));
+        assertTrue(lines.contains("Some values may be outdated"));
     }
 
     @Test
@@ -131,7 +224,6 @@ class PlayerHudTest {
     @Test
     void rendersAvailableFieldsEvenWhenPlayerStatusIsUnavailable() {
         MarketGuardConfig.setPlayerHudPreset("profile");
-        PlayerHud.setPreset("profile");
         PlayerHud.setPreset("profile");
         JsonObject player = new JsonObject();
         player.addProperty("status", "unavailable");
@@ -153,21 +245,45 @@ class PlayerHudTest {
         assertTrue(lines.contains("Player data unavailable"));
         assertTrue(lines.stream().anyMatch(line -> line.startsWith("First joined: ")));
         assertTrue(lines.contains("Profile: Apple"));
-        assertTrue(lines.contains("Bank: 42,000,000 | Purse: ?"));
+        assertTrue(lines.contains("Bank: 42,000,000"));
         assertTrue(lines.contains("UUID: fd9347ca546f4a4c89239665caa0385c"));
     }
 
     @Test
     void requestFailureStillShowsTheKnownTargetName() {
         MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
         List<String> lines = PlayerHud.errorContent(new PlayerHud.Target("Pankraz01", null))
                 .lines().stream().map(line -> line.getString()).toList();
 
-        assertTrue(lines.contains("Pankraz01"));
-        assertTrue(lines.contains("Player data unavailable"));
-        assertTrue(lines.stream().anyMatch(line -> line.equals("marketguard.hud.scamscreener.installed")
-                || line.equals("marketguard.hud.scamscreener.not_installed")));
-        assertTrue(lines.contains("Unavailable: Player API response"));
+        assertEquals(List.of("Pankraz01", "Player data unavailable"), lines);
+    }
+
+    @Test
+    void requestFailureShowsSeenCountForAKnownUuid() {
+        String uuid = "fd9347ca546f4a4c89239665caa0385c";
+        try (MockedStatic<EncounterTracker> encounters = mockStatic(EncounterTracker.class)) {
+            encounters.when(() -> EncounterTracker.timesSeen(uuid)).thenReturn(1);
+
+            List<String> lines = PlayerHud.errorContent(new PlayerHud.Target(uuid, null))
+                    .lines().stream().map(line -> line.getString()).toList();
+
+            assertEquals(List.of(uuid, "Seen once", "Player data unavailable"), lines);
+        }
+    }
+
+    @Test
+    void requestFailureKeepsTheKnownUuidInsteadOfShowingNa() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        MarketGuardConfig.setPlayerHudShowUnavailableRows(true);
+        String uuid = "fd9347ca546f4a4c89239665caa0385c";
+
+        List<String> lines = PlayerHud.errorContent(new PlayerHud.Target(uuid, null))
+                .lines().stream().map(line -> line.getString()).toList();
+
+        assertTrue(lines.contains("UUID: " + uuid));
+        assertFalse(lines.contains("UUID: n/a"));
     }
 
     @Test
@@ -194,7 +310,7 @@ class PlayerHudTest {
                 .lines().stream().map(line -> line.getString()).toList();
 
         assertTrue(lines.stream().noneMatch(line -> line.equals("All")));
-        assertTrue(lines.contains("Bank: n/a | Purse: n/a"));
+        assertTrue(lines.contains("Bank + purse: n/a"));
         assertTrue(lines.contains("Active pet: n/a"));
         assertTrue(lines.contains("UUID: n/a"));
     }
@@ -230,11 +346,11 @@ class PlayerHudTest {
 
         assertTrue(lines.stream().noneMatch(line -> line.equals("All")));
         assertTrue(lines.contains("Profile: Apple"));
-        assertTrue(lines.contains("Bank: 42,000,000 | Purse: 1,000,000"));
+        assertTrue(lines.contains("Bank + purse: 43,000,000"));
         assertTrue(lines.contains("Active pet: Ender Dragon"));
-        assertTrue(lines.contains("Skills: Mining 50 | Visible avg 50.0 (1 skill)"));
+        assertTrue(lines.contains("Skills: Mining 50 | Avg 50.0 (1 skill)"));
         assertTrue(lines.contains("UUID: fd9347ca546f4a4c89239665caa0385c"));
-        assertTrue(lines.contains("marketguard.hud.scamscreener.no_entry"));
+        assertTrue(lines.contains("marketguard.hud.scamscreener.not_installed"));
     }
 
     @Test
@@ -290,16 +406,47 @@ class PlayerHudTest {
             List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
                     .lines().stream().map(line -> line.getString()).toList();
 
-            assertTrue(lines.contains("Profile: Apple | ID: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
-            assertTrue(lines.contains("Known profile value estimate: 15,000,000 coins"));
-            assertTrue(lines.contains("Priced visible gear: 3/3 items"));
+            assertTrue(lines.contains("Profile: Apple"));
+            assertTrue(lines.contains("Est. net worth: ~15,000,000"));
+            assertTrue(lines.contains("Priced gear: 3/3 items"));
             assertTrue(lines.contains("Not included: inventory, pets"));
-            assertTrue(lines.contains("Estimate data: finance API + cached market prices"));
+            assertTrue(lines.stream().noneMatch(line -> line.contains("Finance data") || line.contains("outdated")));
         }
     }
 
     @Test
-    void showsServerMuseumValueOwnershipAndPartialStateWithoutInventingRoi() {
+    void reportsUnpricedGearInsteadOfPriceJargon() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        JsonObject player = playerWithProfileIds();
+        JsonArray armor = new JsonArray();
+        armor.add(item("HELMET", "Helmet", 1));
+        player.getAsJsonObject("profile").getAsJsonObject("wealth").add("armor", armor);
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(
+                financeResponse("ok", 11_000_000.0, null, List.of()),
+                false,
+                false,
+                false
+        ));
+
+        try (MockedStatic<BazaarData> bazaar = mockStatic(BazaarData.class);
+             MockedStatic<LowestBinData> auctions = mockStatic(LowestBinData.class)) {
+            bazaar.when(() -> BazaarData.lookupProduct("HELMET"))
+                    .thenReturn(new BazaarData.LookupResult(null, false, false, false));
+            auctions.when(() -> LowestBinData.lookupPriceData("HELMET"))
+                    .thenReturn(new LowestBinData.LookupResult(null, null, null, false, false, false));
+
+            List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                    .lines().stream().map(line -> line.getString()).toList();
+
+            assertTrue(lines.contains("Armor: Helmet"));
+            assertTrue(lines.contains("Priced gear: 0/1 items"));
+            assertTrue(lines.contains("Not included: inventory, pets, some gear prices"));
+        }
+    }
+
+    @Test
+    void showsServerMuseumValueAndExhibitsWithoutFinanceDiagnostics() {
         MarketGuardConfig.setPlayerHudPreset("all");
         PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
@@ -321,11 +468,10 @@ class PlayerHudTest {
         List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
                 .lines().stream().map(line -> line.getString()).toList();
 
-        assertTrue(lines.contains("Known profile value estimate: 130,000,000 coins"));
-        assertTrue(lines.contains("Museum: Value: 25,000,000 coins | Appraisal: available"));
-        assertTrue(lines.contains("Museum ownership: 2 donated exhibits | 1 special exhibits"));
-        assertTrue(lines.contains("Finance & museum: partial"));
-        assertTrue(lines.contains("Income, costs & ROI: unavailable"));
+        assertTrue(lines.contains("Est. net worth: ~130,000,000"));
+        assertTrue(lines.contains("Museum: 25,000,000, appraised"));
+        assertTrue(lines.contains("Museum: 2 exhibits (1 special)"));
+        assertTrue(lines.stream().noneMatch(line -> line.startsWith("Finance") || line.contains("ROI")));
     }
 
     @Test
@@ -348,10 +494,88 @@ class PlayerHudTest {
         List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
                 .lines().stream().map(line -> line.getString()).toList();
 
-        assertTrue(lines.contains("Known profile value estimate: unavailable"));
-        assertTrue(lines.contains("Finance data: private"));
-        assertTrue(lines.contains("Finance & museum: private"));
-        assertFalse(lines.stream().anyMatch(line -> line.startsWith("Museum: Value:")));
+        assertTrue(lines.contains("Finance data unavailable"));
+        assertTrue(lines.stream().noneMatch(line -> line.startsWith("Est. net worth") || line.startsWith("Museum")));
+    }
+
+    @Test
+    void compactPresetHidesTheNetWorthLineWhileFinanceIsUnavailable() {
+        MarketGuardConfig.setPlayerHudPreset("compact");
+        PlayerHud.setPreset("compact");
+        JsonObject player = playerWithProfileIds();
+        JsonObject wealth = player.getAsJsonObject("profile").getAsJsonObject("wealth");
+        wealth.addProperty("purse", 1_000_000.0);
+        JsonArray armor = new JsonArray();
+        armor.add(item("HELMET", "Helmet", 1));
+        wealth.add("armor", armor);
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(null, false, false, true));
+
+        try (MockedStatic<BazaarData> bazaar = mockStatic(BazaarData.class)) {
+            bazaar.when(() -> BazaarData.lookupProduct("HELMET")).thenReturn(new BazaarData.LookupResult(
+                    new BazaarData.Product("Helmet", 2_100_000.0, 2_000_000.0),
+                    false,
+                    false,
+                    false
+            ));
+
+            List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                    .lines().stream().map(line -> line.getString()).toList();
+
+            assertTrue(lines.contains("Purse: 1,000,000"));
+            assertTrue(lines.stream().noneMatch(line -> line.startsWith("Est. net worth") || line.contains("Finance data")));
+        }
+    }
+
+    @Test
+    void emptyGearArraysShowNoPricedGearLine() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        JsonObject player = playerWithProfileIds();
+        JsonObject wealth = player.getAsJsonObject("profile").getAsJsonObject("wealth");
+        wealth.add("armor", new JsonArray());
+        wealth.add("equipment", new JsonArray());
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(
+                financeResponse("ok", 11_000_000.0, null, List.of()),
+                false,
+                false,
+                false
+        ));
+
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                .lines().stream().map(line -> line.getString()).toList();
+
+        assertTrue(lines.contains("Est. net worth: ~11,000,000"));
+        assertTrue(lines.stream().noneMatch(line -> line.startsWith("Priced gear")));
+    }
+
+    @Test
+    void gearPricesStillLoadingShowTheLoadingWarning() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        JsonObject player = playerWithProfileIds();
+        JsonArray armor = new JsonArray();
+        armor.add(item("HELMET", "Helmet", 1));
+        player.getAsJsonObject("profile").getAsJsonObject("wealth").add("armor", armor);
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(
+                financeResponse("ok", 11_000_000.0, null, List.of()),
+                false,
+                false,
+                false
+        ));
+
+        try (MockedStatic<BazaarData> bazaar = mockStatic(BazaarData.class);
+             MockedStatic<LowestBinData> auctions = mockStatic(LowestBinData.class)) {
+            bazaar.when(() -> BazaarData.lookupProduct("HELMET"))
+                    .thenReturn(new BazaarData.LookupResult(null, false, true, false));
+            auctions.when(() -> LowestBinData.lookupPriceData("HELMET"))
+                    .thenReturn(new LowestBinData.LookupResult(null, null, null, false, true, false));
+
+            List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                    .lines().stream().map(line -> line.getString()).toList();
+
+            assertTrue(lines.contains("Priced gear: 0/1 items"));
+            assertTrue(lines.contains("Loading finance data..."));
+        }
     }
 
     @Test
@@ -383,7 +607,8 @@ class PlayerHudTest {
                 .lines().stream().map(line -> line.getString()).toList();
 
         assertTrue(lines.contains("Profile: n/a"));
-        assertTrue(lines.contains("Bank: n/a | Purse: n/a"));
+        assertTrue(lines.contains("Bank + purse: n/a"));
+        assertTrue(lines.contains("Est. net worth: n/a"));
         assertTrue(lines.contains("Armor: n/a"));
         assertTrue(lines.contains("Equipment: n/a"));
         assertTrue(lines.contains("Active pet: n/a"));
