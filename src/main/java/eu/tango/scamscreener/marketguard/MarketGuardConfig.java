@@ -7,7 +7,6 @@ import eu.midnightdust.lib.config.EntryInfo;
 import eu.tango.scamscreener.marketguard.hud.HudCustomization;
 import eu.tango.scamscreener.marketguard.auction.AuctionOverbidding;
 import eu.tango.scamscreener.marketguard.auction.AuctionUnderbidding;
-import eu.tango.scamscreener.marketguard.hud.PlayerHud;
 import eu.tango.scamscreener.marketguard.profittracker.ProfitTrackerResetScreen;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
@@ -28,7 +27,23 @@ public final class MarketGuardConfig extends MidnightConfig {
     private static final String TRACKER = "tracker";
     private static final String GENERAL = "general";
     private static final List<String> SCREEN_KEYS = List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge");
-    private static final List<String> DEFAULT_AUCTION_PRICE_HUD_ROWS = List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale");
+    public static final List<String> DEFAULT_AUCTION_PRICE_HUD_SCREENS = List.of("bin_view");
+    public static final List<String> DEFAULT_PLAYER_HUD_SCREENS = List.of("trade", "profile", "bin_view");
+    public static final List<String> DEFAULT_TRADE_GUARD_HUD_SCREENS = List.of("trade");
+    public static final List<String> DEFAULT_MINION_PROFIT_HUD_SCREENS = List.of("minion");
+    public static final List<String> DEFAULT_FORGE_PROFIT_HUD_SCREENS = List.of("forge");
+    public static final List<String> DEFAULT_PROFIT_TRACKER_HUD_SCREENS = List.of("ingame");
+    public static final List<String> AUCTION_PRICE_HUD_ROW_IDS = List.of("item", "auction", "lowest_bin", "advice", "difference", "volatility", "liquidity", "stale");
+    public static final List<String> DEFAULT_AUCTION_PRICE_HUD_ROWS = List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale");
+    public static final List<String> DEFAULT_PLAYER_HUD_ROWS = List.of(
+            "name", "seen", "scamscreener", "status", "wealth", "profile_value",
+            "first_join", "profile", "value_coverage", "value_missing", "value_status",
+            "museum", "museum_items", "armor", "equipment", "pet", "skills", "uuid", "data"
+    );
+    public static final List<String> DEFAULT_TRADE_GUARD_HUD_ROWS = List.of("own_value", "partner_value", "difference", "unpriced", "data", "warning");
+    public static final List<String> DEFAULT_MINION_PROFIT_HUD_ROWS = List.of("held_coins", "profit", "missing", "loading", "unavailable", "stale");
+    public static final List<String> DEFAULT_FORGE_PROFIT_HUD_ROWS = List.of("profit", "missing", "loading", "unavailable", "stale");
+    public static final List<String> DEFAULT_PROFIT_TRACKER_HUD_ROWS = List.of("bazaar", "auction_house", "minion", "interest", "allowance", "total");
     // Layouts shipped by the 1.5.0 betas (after normalisation); configs still holding one receive the new default.
     private static final List<List<String>> LEGACY_AUCTION_PRICE_HUD_ROWS = List.of(
             List.of("item", "auction", "lowest_bin", "difference", "advice", "volatility", "liquidity", "stale"),
@@ -59,44 +74,40 @@ public final class MarketGuardConfig extends MidnightConfig {
 
     @Entry(category = HUD)
     @Hidden
-    public static List<String> auctionPriceHudScreens = new ArrayList<>(List.of("bin_view"));
+    public static List<String> auctionPriceHudScreens = new ArrayList<>(DEFAULT_AUCTION_PRICE_HUD_SCREENS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> playerHudScreens = new ArrayList<>(List.of("trade", "profile", "bin_view"));
+    public static List<String> playerHudScreens = new ArrayList<>(DEFAULT_PLAYER_HUD_SCREENS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> tradeGuardHudScreens = new ArrayList<>(List.of("trade"));
+    public static List<String> tradeGuardHudScreens = new ArrayList<>(DEFAULT_TRADE_GUARD_HUD_SCREENS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> minionProfitHudScreens = new ArrayList<>(List.of("minion"));
+    public static List<String> minionProfitHudScreens = new ArrayList<>(DEFAULT_MINION_PROFIT_HUD_SCREENS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> forgeProfitHudScreens = new ArrayList<>(List.of("forge"));
+    public static List<String> forgeProfitHudScreens = new ArrayList<>(DEFAULT_FORGE_PROFIT_HUD_SCREENS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> profitTrackerHudScreens = new ArrayList<>(List.of("ingame"));
+    public static List<String> profitTrackerHudScreens = new ArrayList<>(DEFAULT_PROFIT_TRACKER_HUD_SCREENS);
     @Entry(category = HUD)
     @Hidden
     public static List<String> auctionPriceHudRows = new ArrayList<>(DEFAULT_AUCTION_PRICE_HUD_ROWS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> playerHudRows = new ArrayList<>(List.of(
-            "name", "seen", "scamscreener", "status", "wealth", "profile_value",
-            "first_join", "profile", "value_coverage", "value_missing", "value_status",
-            "museum", "museum_items", "armor", "equipment", "pet", "skills", "uuid", "data"
-    ));
+    public static List<String> playerHudRows = new ArrayList<>(DEFAULT_PLAYER_HUD_ROWS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> tradeGuardHudRows = new ArrayList<>(List.of("own_value", "partner_value", "difference", "unpriced", "data", "warning"));
+    public static List<String> tradeGuardHudRows = new ArrayList<>(DEFAULT_TRADE_GUARD_HUD_ROWS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> minionProfitHudRows = new ArrayList<>(List.of("held_coins", "profit", "missing", "loading", "unavailable", "stale"));
+    public static List<String> minionProfitHudRows = new ArrayList<>(DEFAULT_MINION_PROFIT_HUD_ROWS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> forgeProfitHudRows = new ArrayList<>(List.of("profit", "missing", "loading", "unavailable", "stale"));
+    public static List<String> forgeProfitHudRows = new ArrayList<>(DEFAULT_FORGE_PROFIT_HUD_ROWS);
     @Entry(category = HUD)
     @Hidden
-    public static List<String> profitTrackerHudRows = new ArrayList<>(List.of("bazaar", "auction_house", "minion", "interest", "allowance", "total"));
+    public static List<String> profitTrackerHudRows = new ArrayList<>(DEFAULT_PROFIT_TRACKER_HUD_ROWS);
 
     public MarketGuardConfig() {}
 
@@ -225,7 +236,6 @@ public final class MarketGuardConfig extends MidnightConfig {
         }
 
         super.writeChanges(modid);
-        PlayerHud.setPreset(getPlayerHudPreset());
     }
 
     @Override
@@ -264,12 +274,12 @@ public final class MarketGuardConfig extends MidnightConfig {
             playerHudPreset = PlayerHudPreset.trade;
             changed = true;
         }
-        if (auctionPriceHudScreens == null) { auctionPriceHudScreens = new ArrayList<>(List.of("bin_view")); changed = true; }
-        if (playerHudScreens == null) { playerHudScreens = new ArrayList<>(List.of("trade", "profile", "bin_view")); changed = true; }
-        if (tradeGuardHudScreens == null) { tradeGuardHudScreens = new ArrayList<>(List.of("trade")); changed = true; }
-        if (minionProfitHudScreens == null) { minionProfitHudScreens = new ArrayList<>(List.of("minion")); changed = true; }
-        if (forgeProfitHudScreens == null) { forgeProfitHudScreens = new ArrayList<>(List.of("forge")); changed = true; }
-        if (profitTrackerHudScreens == null) { profitTrackerHudScreens = new ArrayList<>(List.of("ingame")); changed = true; }
+        if (auctionPriceHudScreens == null) { auctionPriceHudScreens = new ArrayList<>(DEFAULT_AUCTION_PRICE_HUD_SCREENS); changed = true; }
+        if (playerHudScreens == null) { playerHudScreens = new ArrayList<>(DEFAULT_PLAYER_HUD_SCREENS); changed = true; }
+        if (tradeGuardHudScreens == null) { tradeGuardHudScreens = new ArrayList<>(DEFAULT_TRADE_GUARD_HUD_SCREENS); changed = true; }
+        if (minionProfitHudScreens == null) { minionProfitHudScreens = new ArrayList<>(DEFAULT_MINION_PROFIT_HUD_SCREENS); changed = true; }
+        if (forgeProfitHudScreens == null) { forgeProfitHudScreens = new ArrayList<>(DEFAULT_FORGE_PROFIT_HUD_SCREENS); changed = true; }
+        if (profitTrackerHudScreens == null) { profitTrackerHudScreens = new ArrayList<>(DEFAULT_PROFIT_TRACKER_HUD_SCREENS); changed = true; }
         if (auctionPriceHudRows == null) { auctionPriceHudRows = new ArrayList<>(DEFAULT_AUCTION_PRICE_HUD_ROWS); changed = true; }
         if (playerHudRows == null) { playerHudRows = new ArrayList<>(); changed = true; }
         if (tradeGuardHudRows == null) { tradeGuardHudRows = new ArrayList<>(); changed = true; }
@@ -282,21 +292,17 @@ public final class MarketGuardConfig extends MidnightConfig {
         changed |= normalizeScreens(minionProfitHudScreens);
         changed |= normalizeScreens(forgeProfitHudScreens);
         changed |= normalizeScreens(profitTrackerHudScreens);
-        changed |= normalizeRows(auctionPriceHudRows, List.of("item", "auction", "lowest_bin", "advice", "difference", "volatility", "liquidity", "stale"));
+        changed |= normalizeRows(auctionPriceHudRows, AUCTION_PRICE_HUD_ROW_IDS);
         if (LEGACY_AUCTION_PRICE_HUD_ROWS.contains(auctionPriceHudRows)) {
             auctionPriceHudRows.clear();
             auctionPriceHudRows.addAll(DEFAULT_AUCTION_PRICE_HUD_ROWS);
             changed = true;
         }
-        changed |= normalizeRows(playerHudRows, List.of(
-                "name", "seen", "scamscreener", "status", "wealth", "profile_value",
-                "first_join", "profile", "value_coverage", "value_missing", "value_status",
-                "museum", "museum_items", "armor", "equipment", "pet", "skills", "uuid", "data"
-        ));
-        changed |= normalizeRows(tradeGuardHudRows, List.of("own_value", "partner_value", "difference", "unpriced", "data", "warning"));
-        changed |= normalizeRows(minionProfitHudRows, List.of("held_coins", "profit", "missing", "loading", "unavailable", "stale"));
-        changed |= normalizeRows(forgeProfitHudRows, List.of("profit", "missing", "loading", "unavailable", "stale"));
-        changed |= normalizeRows(profitTrackerHudRows, List.of("bazaar", "auction_house", "minion", "interest", "allowance", "total"));
+        changed |= normalizeRows(playerHudRows, DEFAULT_PLAYER_HUD_ROWS);
+        changed |= normalizeRows(tradeGuardHudRows, DEFAULT_TRADE_GUARD_HUD_ROWS);
+        changed |= normalizeRows(minionProfitHudRows, DEFAULT_MINION_PROFIT_HUD_ROWS);
+        changed |= normalizeRows(forgeProfitHudRows, DEFAULT_FORGE_PROFIT_HUD_ROWS);
+        changed |= normalizeRows(profitTrackerHudRows, DEFAULT_PROFIT_TRACKER_HUD_ROWS);
         return changed;
     }
 

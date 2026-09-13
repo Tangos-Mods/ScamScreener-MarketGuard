@@ -12,15 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class VisibleProfileValueTest {
 
     @Test
-    void sumsBalancesAndOnlyPricedVisibleGear() {
+    void sumsTheKnownFinanceAndOnlyPricedVisibleGear() {
         Map<String, VisibleProfileValue.ItemPrice> prices = Map.of(
                 "HELMET", price(1_000_000.0),
                 "BELT", price(250_000.0)
         );
 
         VisibleProfileValue.Estimate estimate = VisibleProfileValue.estimate(
-                42_000_000.0,
-                1_000_000.0,
+                43_000_000.0,
                 List.of(
                         new VisibleProfileValue.Item("HELMET", 1),
                         new VisibleProfileValue.Item("BELT", 2)
@@ -39,7 +38,6 @@ class VisibleProfileValueTest {
     void leavesMissingAndLowQualityPricesOutOfTheEstimate() {
         VisibleProfileValue.Estimate estimate = VisibleProfileValue.estimate(
                 5_000_000.0,
-                null,
                 List.of(
                         new VisibleProfileValue.Item("LOW_QUALITY", 1),
                         new VisibleProfileValue.Item("UNKNOWN", 2)
@@ -50,8 +48,6 @@ class VisibleProfileValueTest {
         );
 
         assertEquals(5_000_000.0, estimate.value());
-        assertEquals(1, estimate.includedBalances());
-        assertEquals(1, estimate.missingBalances());
         assertEquals(3, estimate.missingItemPrices());
         assertEquals(1, estimate.lowQualityItemPrices());
     }
@@ -59,7 +55,6 @@ class VisibleProfileValueTest {
     @Test
     void carriesMarketCacheStateIntoTheEstimate() {
         VisibleProfileValue.Estimate estimate = VisibleProfileValue.estimate(
-                null,
                 null,
                 List.of(new VisibleProfileValue.Item("HELMET", 1)),
                 ignored -> new VisibleProfileValue.ItemPrice(1_000_000.0, false, true, true, true)
@@ -75,13 +70,11 @@ class VisibleProfileValueTest {
     void reportsNoEstimateWhenNothingVisibleCanBeValued() {
         VisibleProfileValue.Estimate estimate = VisibleProfileValue.estimate(
                 Double.NaN,
-                -1.0,
                 List.of(new VisibleProfileValue.Item(null, 1)),
                 ignored -> price(1.0)
         );
 
         assertFalse(estimate.hasValue());
-        assertEquals(2, estimate.missingBalances());
         assertEquals(1, estimate.missingItemPrices());
     }
 

@@ -151,7 +151,6 @@ public final class HudEditorScreen extends Screen {
 
     private void setPlayerPreset(String preset) {
         MarketGuardConfig.setPlayerHudPreset(preset);
-        PlayerHud.setPreset(preset);
         MarketGuardConfig.save();
     }
 

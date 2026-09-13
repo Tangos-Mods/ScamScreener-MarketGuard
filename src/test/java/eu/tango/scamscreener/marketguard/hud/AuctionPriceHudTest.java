@@ -123,13 +123,13 @@ class AuctionPriceHudTest {
                 "FANCY_LEGGINGS",
                 "Fancy Leggings",
                 1_000_000.0,
-                new LowestBinData.LookupResult(null, null, false, false, false)
+                new LowestBinData.LookupResult(null, null, null, false, false, false)
         ));
         HudContent failed = AuctionPriceHud.content(new AuctionPriceHud.View(
                 "FANCY_LEGGINGS",
                 "Fancy Leggings",
                 1_000_000.0,
-                new LowestBinData.LookupResult(null, null, false, false, true)
+                new LowestBinData.LookupResult(null, null, null, false, false, true)
         ));
 
         assertTrue(lines(missing).contains("No market price for this item"));

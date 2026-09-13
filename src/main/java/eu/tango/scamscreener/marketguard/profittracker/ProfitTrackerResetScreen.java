@@ -13,16 +13,16 @@ public final class ProfitTrackerResetScreen {
     public static void open(Screen parent) {
         Minecraft client = Minecraft.getInstance();
         ConfirmScreen confirmation = new ConfirmScreen(confirmed -> {
-            if (confirmed && client.player != null) {
+            if (confirmed) {
                 boolean reset = ProfitTracker.resetAll();
-                client.player.sendSystemMessage(MessageBuilder.PREFIX.copy().append(
-                        Component.translatable(reset
-                                        ? "marketguard.profit_tracker.reset.success"
-                                        : "marketguard.profit_tracker.reset.failed")
-                                .withStyle(reset ? ChatFormatting.GREEN : ChatFormatting.RED)
-                ));
-            } else if (confirmed) {
-                ProfitTracker.resetAll();
+                if (client.player != null) {
+                    client.player.sendSystemMessage(MessageBuilder.PREFIX.copy().append(
+                            Component.translatable(reset
+                                            ? "marketguard.profit_tracker.reset.success"
+                                            : "marketguard.profit_tracker.reset.failed")
+                                    .withStyle(reset ? ChatFormatting.GREEN : ChatFormatting.RED)
+                    ));
+                }
             }
             setScreen(client, parent);
         }, Component.translatable("marketguard.profit_tracker.reset.confirm_title"),

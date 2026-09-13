@@ -40,6 +40,17 @@ First stable release of the 1.5.0 line; see the beta sections below for everythi
 - Replace the static `MarketGuardApi.lookupCached...`/`request...` methods with the entrypoint instance methods of the same name.
 - `MarketGuardConfig.save()` and `ProfitTrackerHud.setDisplayEnabled()` are `void`; MidnightLib never reports write failures, so the unreachable rollback branches were removed.
 - Add `HudScreenGroup.key()` for the config key of a screen group.
+- `PlayerHud` reads `MarketGuardConfig.playerHudPreset` directly; the mirrored `PlayerHud.Preset` enum, `setPreset` and the `writeChanges` hook are gone, so `/mg reload` applies a changed preset immediately.
+- Finance data flagged `stale` by the server is displayed as such but no longer re-requested before the cache TTL expires.
+- The Profit Tracker widget skips the scoreboard profile lookup while the HUD is disabled, outside SkyBlock or without a player.
+- Default HUD screen and row lists live once as `MarketGuardConfig.DEFAULT_*` constants; `HudCustomization` and `normalizeValues` use them.
+- Command feedback names `scamscreener_marketguard/config.json`; `formatPrice` takes a `long`.
+- `VisibleProfileValue.estimate(knownFinance, items, lookup)` replaces the always-null `purse` parameter and the unused balance counters.
+
+## Removed
+
+- The synchronous snapshot fetch path (`SnapshotCache.getSnapshot`, `SyncFetcher`, `LowestBinData.getLowestBin`, `BazaarData.getProduct`) and the two `live-api` tests that were its only users.
+- Dead code: `PlayerFinanceData` fields never read (`donatedIds`, `specialIds`, `fetchedAt`, profile `name`/`selected`), `HudCustomization.toggleRow`/`moveRow`/`moveRowTo`/`visibilityLabel`, `TradeGuardHud.Offer.empty`, `ProfitTracker.confirmBazaarFill` and the no-arg profit getters, `ProfitTrackerStore` path-less overloads, `MarketGuard.id`, the `ModrinthUpdateChecker` copy of `currentVersion`, `AuctionSlots.CREATE_BIN_CONFIRM`, `AuctionInventory.MAIN_COOP`, the `exceedsAbsoluteThreshold` wrappers, the mixin's `BYPASS_TITLE`/`AtomicInteger` bypass bookkeeping and `shouldTriggerBlacklistCheckOnOpen`, unused Stonecutter swaps/constants, duplicated `processResources` inputs, and the unused lang keys `marketguard.hud.rows`, `marketguard.hud.rows.drag`, `marketguard.hud.visible`, `marketguard.hud.hidden`, `marketguard.midnightconfig.playerHudPreset(.tooltip)`.
 
 ## 1.5.0-beta.3
 

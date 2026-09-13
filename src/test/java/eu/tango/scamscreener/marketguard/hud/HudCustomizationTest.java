@@ -17,7 +17,6 @@ class HudCustomizationTest {
     @AfterEach
     void reset() {
         MarketGuardConfig.setPlayerHudPreset("trade");
-        PlayerHud.setPreset("trade");
         MarketGuardConfig.auctionPriceHudScreens = new ArrayList<>(List.of("bin_view"));
         MarketGuardConfig.auctionPriceHudRows = new ArrayList<>(List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale"));
         MarketGuardConfig.playerHudScreens = new ArrayList<>(List.of("trade", "profile", "bin_view"));
@@ -42,36 +41,16 @@ class HudCustomizationTest {
     }
 
     @Test
-    void rowVisibilityAndOrderAreConfigurable() {
-        assertFalse(HudCustomization.rowEnabled(HudCustomization.HudId.AUCTION_PRICE, "difference"));
-
-        HudCustomization.toggleRow(HudCustomization.HudId.AUCTION_PRICE, "difference");
-        HudCustomization.moveRow(HudCustomization.HudId.AUCTION_PRICE, "advice", -3);
-
-        assertTrue(HudCustomization.rowEnabled(HudCustomization.HudId.AUCTION_PRICE, "difference"));
-        assertEquals(List.of("advice", "item", "auction", "lowest_bin", "volatility", "liquidity", "stale", "difference"),
-                HudCustomization.rows(HudCustomization.HudId.AUCTION_PRICE));
-    }
-
-    @Test
     void resetRestoresTheShippedAuctionPriceLayoutWithTheDifferenceRowHidden() {
-        HudCustomization.toggleRow(HudCustomization.HudId.AUCTION_PRICE, "difference");
-        HudCustomization.moveRow(HudCustomization.HudId.AUCTION_PRICE, "advice", -3);
+        HudCustomization.placeRow(HudCustomization.HudId.AUCTION_PRICE, "difference", true, 0);
+        HudCustomization.placeRow(HudCustomization.HudId.AUCTION_PRICE, "advice", true, 0);
 
         HudCustomization.reset(HudCustomization.HudId.AUCTION_PRICE);
 
-        assertFalse(HudCustomization.rowEnabled(HudCustomization.HudId.AUCTION_PRICE, "difference"));
+        assertEquals(List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale"),
+                MarketGuardConfig.auctionPriceHudRows);
         assertEquals(List.of("item", "auction", "lowest_bin", "advice", "volatility", "liquidity", "stale"),
                 HudCustomization.rows(HudCustomization.HudId.AUCTION_PRICE));
-    }
-
-    @Test
-    void dragAndDropMovesRowsToTheRequestedIndexAndKeepsVisibility() {
-        HudCustomization.moveRowTo(HudCustomization.HudId.AUCTION_PRICE, "difference", 1);
-
-        assertEquals(List.of("item", "!difference", "auction", "lowest_bin", "advice", "volatility", "liquidity", "stale"),
-                MarketGuardConfig.auctionPriceHudRows);
-        assertFalse(HudCustomization.rowEnabled(HudCustomization.HudId.AUCTION_PRICE, "difference"));
     }
 
     @Test
@@ -95,12 +74,10 @@ class HudCustomizationTest {
     @Test
     void droppingPlayerRowsKeepsTheRowsOfOtherPresets() {
         MarketGuardConfig.setPlayerHudPreset("profile");
-        PlayerHud.setPreset("profile");
-        HudCustomization.toggleRow(HudCustomization.HudId.PLAYER, "uuid");
-        HudCustomization.toggleRow(HudCustomization.HudId.PLAYER, "museum_items");
+        HudCustomization.placeRow(HudCustomization.HudId.PLAYER, "uuid", false, 0);
+        HudCustomization.placeRow(HudCustomization.HudId.PLAYER, "museum_items", false, 0);
 
         MarketGuardConfig.setPlayerHudPreset("trade");
-        PlayerHud.setPreset("trade");
         HudCustomization.placeRow(HudCustomization.HudId.PLAYER, "seen", true, 2);
 
         assertEquals(List.of("name", "scamscreener", "seen", "status"), MarketGuardConfig.playerHudRows.subList(0, 4));
@@ -109,7 +86,6 @@ class HudCustomizationTest {
         assertTrue(MarketGuardConfig.playerHudRows.contains("!museum_items"));
 
         MarketGuardConfig.setPlayerHudPreset("profile");
-        PlayerHud.setPreset("profile");
         assertFalse(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("uuid"));
         assertTrue(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("armor"));
     }
@@ -137,17 +113,14 @@ class HudCustomizationTest {
     @Test
     void playerPresetChangesTheAvailableRowsWithoutDiscardingConfiguration() {
         MarketGuardConfig.setPlayerHudPreset("compact");
-        PlayerHud.setPreset("compact");
         assertEquals(List.of("name", "seen", "scamscreener", "status", "wealth", "profile_value"),
                 HudCustomization.rows(HudCustomization.HudId.PLAYER));
 
         MarketGuardConfig.setPlayerHudPreset("trade");
-        PlayerHud.setPreset("trade");
         assertEquals(List.of("name", "seen", "scamscreener", "status"),
                 HudCustomization.rows(HudCustomization.HudId.PLAYER));
 
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         assertTrue(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("armor"));
         assertFalse(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("finance_history"));
     }
@@ -155,7 +128,6 @@ class HudCustomizationTest {
     @Test
     void removedPlayerRowsInExistingConfigurationsAreIgnored() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         MarketGuardConfig.playerHudRows.addAll(0, List.of("finance_status", "finance_history", "!unavailable"));
 
         List<String> rows = HudCustomization.rows(HudCustomization.HudId.PLAYER);

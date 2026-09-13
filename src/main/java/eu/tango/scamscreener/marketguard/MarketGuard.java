@@ -17,7 +17,6 @@ import eu.tango.scamscreener.marketguard.screen.HypixelScreens;
 import eu.tango.scamscreener.marketguard.update.UpdateJoinNotifier;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,10 +57,6 @@ public class MarketGuard implements ClientModInitializer {
 
     public static String userAgent() {
         return "MarketGuard/" + currentVersion();
-    }
-
-    public static Identifier id(String namespace, String path) {
-        return Identifier.fromNamespaceAndPath(namespace, path);
     }
 
     private void registerListeners() {

@@ -23,16 +23,6 @@ class AuctionHouseMixinTest {
     }
 
     @Test
-    void purchaseScreensSkipOpenTimeBlacklistCheck() throws Exception {
-        assertTrue((boolean) invoke("shouldTriggerBlacklistCheckOnOpen", "Auction Browser"));
-        assertTrue((boolean) invoke("shouldTriggerBlacklistCheckOnOpen", "Bin Auction View"));
-        assertTrue((boolean) invoke("shouldTriggerBlacklistCheckOnOpen", "Confirm Purchase"));
-
-        invoke("rememberPendingConfirmPurchaseItemId", "FANCY_LEGGINGS");
-        assertTrue((boolean) invoke("shouldTriggerBlacklistCheckOnOpen", "Confirm Purchase"));
-    }
-
-    @Test
     void confirmPurchaseCanConsumePendingItemIdFallback() throws Exception {
         invoke("rememberPendingConfirmPurchaseItemId", "FANCY_LEGGINGS");
 
@@ -79,9 +69,7 @@ class AuctionHouseMixinTest {
 
     private static Object invoke(String methodName, Object... args) throws Exception {
         Method method;
-        if ("shouldTriggerBlacklistCheckOnOpen".equals(methodName)) {
-            method = AuctionHouseMixin.class.getDeclaredMethod(methodName, String.class);
-        } else if ("rememberPendingConfirmPurchaseItemId".equals(methodName)) {
+        if ("rememberPendingConfirmPurchaseItemId".equals(methodName)) {
             method = AuctionHouseMixin.class.getDeclaredMethod(methodName, String.class);
         } else if ("rememberLastSeenBinItemId".equals(methodName)) {
             method = AuctionHouseMixin.class.getDeclaredMethod(methodName, String.class);

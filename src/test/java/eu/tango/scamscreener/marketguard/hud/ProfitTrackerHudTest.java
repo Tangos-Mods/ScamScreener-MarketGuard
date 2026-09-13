@@ -24,22 +24,14 @@ class ProfitTrackerHudTest {
     void hidesWidgetWhenDisplayIsDisabled() {
         MarketGuardConfig.setProfitTrackerHudEnabled(false);
 
-        assertFalse(ProfitTrackerHud.content(true, null).visible());
+        assertFalse(ProfitTrackerHud.content(null).visible());
     }
 
     @Test
     void hidesWidgetBeforeSkyBlockSession() {
         MarketGuardConfig.setProfitTrackerHudEnabled(true);
 
-        assertFalse(ProfitTrackerHud.content(true, null).visible());
-    }
-
-    @Test
-    void hidesWidgetWithoutAPlayer() {
-        MarketGuardConfig.setProfitTrackerHudEnabled(true);
-        assertTrue(ProfitTracker.tryStartSkyBlockSession("Welcome to Hypixel SkyBlock!"));
-
-        assertFalse(ProfitTrackerHud.content(false, "orange").visible());
+        assertFalse(ProfitTrackerHud.content(null).visible());
     }
 
     @Test
@@ -47,7 +39,7 @@ class ProfitTrackerHudTest {
         MarketGuardConfig.setProfitTrackerHudEnabled(true);
         assertTrue(ProfitTracker.tryStartSkyBlockSession("Welcome to Hypixel SkyBlock!"));
 
-        HudContent content = ProfitTrackerHud.content(true, null);
+        HudContent content = ProfitTrackerHud.content(null);
 
         assertTrue(content.visible());
         assertEquals("No SkyBlock profile detected.", content.lines().getFirst().getString());
@@ -66,7 +58,7 @@ class ProfitTrackerHudTest {
         MarketGuardConfig.setProfitTrackerHudEnabled(true);
         assertTrue(ProfitTracker.tryStartSkyBlockSession("Welcome to Hypixel SkyBlock!"));
 
-        HudContent content = ProfitTrackerHud.content(true, "orange");
+        HudContent content = ProfitTrackerHud.content("orange");
 
         assertProfitLine(content.lines().get(0), "Bazaar: +1,500", ChatFormatting.GREEN);
         assertProfitLine(content.lines().get(1), "Auction House: -250", ChatFormatting.RED);

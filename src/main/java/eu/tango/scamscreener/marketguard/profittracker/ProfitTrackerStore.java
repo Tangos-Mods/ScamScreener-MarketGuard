@@ -19,10 +19,6 @@ final class ProfitTrackerStore {
 
     private ProfitTrackerStore() {}
 
-    static ProfitTrackerState load() {
-        return load(defaultPath());
-    }
-
     static ProfitTrackerState load(Path path) {
         if (Files.notExists(path)) {
             return new ProfitTrackerState();
@@ -73,7 +69,7 @@ final class ProfitTrackerStore {
                 }
             }
             dropExpiredEntries(state);
-            if (needsProfitMigration || needsBazaarCashflowMigration || needsSchemaUpgrade) {
+            if (needsSchemaUpgrade) {
                 save(path, state);
             }
             return state;
@@ -81,10 +77,6 @@ final class ProfitTrackerStore {
             MarketGuard.LOGGER.warn("Failed to load profit tracker state from {}", path, e);
             return new ProfitTrackerState();
         }
-    }
-
-    static boolean save(ProfitTrackerState state) {
-        return save(defaultPath(), state);
     }
 
     static boolean save(Path path, ProfitTrackerState state) {

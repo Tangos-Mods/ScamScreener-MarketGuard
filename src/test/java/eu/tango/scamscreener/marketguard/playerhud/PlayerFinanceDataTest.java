@@ -48,7 +48,7 @@ class PlayerFinanceDataTest {
         assertTrue(response.stale());
         assertEquals(130_000_000.0, response.profile().finance().knownTotal());
         assertTrue(response.profile().museum().appraisal());
-        assertEquals(List.of("HYPERION", "TERMINATOR"), response.profile().museum().donatedIds());
+        assertEquals(2, response.profile().museum().donatedCount());
         assertEquals(1, response.profile().museum().specialCount());
         assertTrue(response.fieldAvailable("museum.value"));
         assertFalse(response.fieldAvailable("museum.appraisal"));
@@ -84,6 +84,31 @@ class PlayerFinanceDataTest {
         pending.complete(response("ok", List.of()));
         assertTrue(first.join().hasValue());
         assertFalse(first.join().stale());
+    }
+
+    @Test
+    void serverFlaggedStaleResponsesAreNotRefetchedWithinTheCacheTtl() {
+        AtomicInteger calls = new AtomicInteger();
+        PlayerFinanceData.setRequesterForTests(key -> {
+            calls.incrementAndGet();
+            return CompletableFuture.completedFuture(new PlayerFinanceData.Response(
+                    "ok",
+                    true,
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    response("ok", List.of()).profile(),
+                    List.of()
+            ));
+        });
+
+        PlayerFinanceData.request("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb").join();
+        PlayerFinanceData.LookupResult lookup = PlayerFinanceData.request(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ).join();
+
+        assertEquals(1, calls.get());
+        assertTrue(lookup.value().stale());
+        assertFalse(lookup.stale());
     }
 
     @Test
@@ -134,12 +159,9 @@ class PlayerFinanceDataTest {
         return new PlayerFinanceData.Response(
                 status,
                 false,
-                1715478978620L,
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 new PlayerFinanceData.Profile(
                         "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                        "Apple",
-                        true,
                         new PlayerFinanceData.Finance(1.0, 2.0, 3.0, 6.0),
                         null
                 ),

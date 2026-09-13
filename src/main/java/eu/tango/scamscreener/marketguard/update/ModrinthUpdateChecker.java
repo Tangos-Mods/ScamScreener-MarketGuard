@@ -82,10 +82,10 @@ public final class ModrinthUpdateChecker {
     }
 
     private static CompletableFuture<UpdateInfo> fetchLatestUpdateAsync() {
-        String currentVersion = currentVersion();
+        String currentVersion = MarketGuard.currentVersion();
         HttpRequest request = HttpRequest.newBuilder(buildVersionsUri())
                 .header("Accept", "application/json")
-                .header("User-Agent", "MarketGuard/" + currentVersion)
+                .header("User-Agent", MarketGuard.userAgent())
                 .timeout(REQUEST_TIMEOUT)
                 .GET()
                 .build();
@@ -165,13 +165,6 @@ public final class ModrinthUpdateChecker {
         } catch (RuntimeException exception) {
             return Instant.EPOCH;
         }
-    }
-
-    private static String currentVersion() {
-        return FabricLoader.getInstance()
-                .getModContainer(MarketGuard.MOD_ID)
-                .map(container -> container.getMetadata().getVersion().getFriendlyString())
-                .orElse("0.0.0");
     }
 
     private static String currentMinecraftVersion() {

@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import eu.tango.scamscreener.marketguard.ApiEndpoint;
 import eu.tango.scamscreener.marketguard.MarketGuard;
 import eu.tango.scamscreener.marketguard.MarketGuardConfig;
+import eu.tango.scamscreener.marketguard.MarketGuardConfig.PlayerHudPreset;
 import eu.tango.scamscreener.marketguard.api.MarketGuardApi;
 import eu.tango.scamscreener.marketguard.api.PlayerApiUnavailableException;
 import eu.tango.scamscreener.marketguard.auction.AuctionReferencePrice;
@@ -57,7 +58,6 @@ public final class PlayerHud {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
     private static volatile View view = View.hidden();
-    private static volatile Preset preset = Preset.TRADE;
     private static volatile ErrorDetails errorDetails;
     private static final ConcurrentHashMap<CacheKey, CachedPlayer> CACHED_PLAYERS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, String> RESOLVED_UUIDS = new ConcurrentHashMap<>();
@@ -68,7 +68,6 @@ public final class PlayerHud {
     private PlayerHud() {}
 
     public static void initialize() {
-        setPreset(MarketGuardConfig.getPlayerHudPreset());
         MarketGuard.LOGGER.info("Player HUD API endpoint: {}", ApiEndpoint.baseUrl());
         HudLibrary.registerWidgets(MarketGuard.MOD_ID, GLFW.GLFW_KEY_F8, Widgets.class, true);
     }
@@ -103,7 +102,7 @@ public final class PlayerHud {
     }
 
     private static void requestPlayerFinance(JsonObject player) {
-        if (preset == Preset.TRADE) {
+        if (MarketGuardConfig.playerHudPreset == PlayerHudPreset.trade) {
             return;
         }
         JsonObject profile = object(player, "profile");
@@ -115,7 +114,7 @@ public final class PlayerHud {
     }
 
     private static void refreshPriceCachesIfNeeded() {
-        if (preset == Preset.TRADE) {
+        if (MarketGuardConfig.playerHudPreset == PlayerHudPreset.trade) {
             return;
         }
         BazaarData.refreshAsyncIfNeeded();
@@ -186,15 +185,6 @@ public final class PlayerHud {
         REQUEST_ID.incrementAndGet();
         errorDetails = null;
         view = View.hidden();
-    }
-
-    public static boolean setPreset(String name) {
-        Preset resolved = Preset.fromConfig(name);
-        if (resolved == null) {
-            return false;
-        }
-        preset = resolved;
-        return true;
     }
 
     private static String normalizeProfileId(String profileId) {
@@ -500,7 +490,6 @@ public final class PlayerHud {
         Double financeTotal = knownFinanceTotal(response);
         VisibleProfileValue.Estimate estimate = VisibleProfileValue.estimate(
                 financeTotal,
-                null,
                 visibleItems,
                 PlayerHud::visibleItemPrice
         );
@@ -522,7 +511,7 @@ public final class PlayerHud {
             lines.put("value_status", Component.literal("Loading finance data...").withStyle(ChatFormatting.GRAY));
         } else if (lookup.refreshFailed() || (response != null && !response.usable())) {
             lines.put("value_status", Component.literal("Finance data unavailable").withStyle(ChatFormatting.YELLOW));
-        } else if (lookup.stale() || estimate.stale() || estimate.refreshFailed()) {
+        } else if (lookup.stale() || (response != null && response.stale()) || estimate.stale() || estimate.refreshFailed()) {
             lines.put("value_status", Component.literal("Some values may be outdated").withStyle(ChatFormatting.YELLOW));
         }
     }
@@ -666,7 +655,8 @@ public final class PlayerHud {
             lines.put("scamscreener", Component.translatable(
                     blacklisted ? "marketguard.hud.scamscreener.match" : "marketguard.hud.scamscreener.no_entry"
             ).withStyle(blacklisted ? ChatFormatting.RED : ChatFormatting.GRAY));
-        } else if (preset == Preset.PROFILE || preset == Preset.ALL) {
+        } else if (MarketGuardConfig.playerHudPreset == PlayerHudPreset.profile
+                || MarketGuardConfig.playerHudPreset == PlayerHudPreset.all) {
             lines.put("scamscreener", Component.translatable("marketguard.hud.scamscreener.not_installed")
                     .withStyle(ChatFormatting.GRAY));
         }
@@ -880,7 +870,6 @@ public final class PlayerHud {
         financeLookup = PlayerFinanceData::lookupCached;
         errorDetails = null;
         view = View.hidden();
-        preset = Preset.TRADE;
         MarketGuardConfig.setPlayerHudShowUnavailableRows(false);
     }
 
@@ -906,23 +895,6 @@ public final class PlayerHud {
         LOADING,
         READY,
         ERROR
-    }
-
-    private enum Preset {
-        TRADE,
-        COMPACT,
-        PROFILE,
-        ALL;
-
-        private static Preset fromConfig(String value) {
-            return switch (value == null ? "" : value.toLowerCase(java.util.Locale.ROOT)) {
-                case "trade" -> TRADE;
-                case "compact" -> COMPACT;
-                case "profile" -> PROFILE;
-                case "all" -> ALL;
-                default -> null;
-            };
-        }
     }
 
     record Target(String player, String profileId) {}

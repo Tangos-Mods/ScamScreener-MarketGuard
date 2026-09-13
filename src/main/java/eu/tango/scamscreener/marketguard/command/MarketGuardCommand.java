@@ -168,7 +168,7 @@ public final class MarketGuardCommand {
 
     private static int reload(FabricClientCommandSource source) {
         MarketGuardConfig.load();
-        source.sendFeedback(message(Component.literal("Reloaded marketguard/config.json.").withStyle(ChatFormatting.GREEN)));
+        source.sendFeedback(message(Component.literal("Reloaded scamscreener_marketguard/config.json.").withStyle(ChatFormatting.GREEN)));
         return sendStatus(source);
     }
 
@@ -221,13 +221,8 @@ public final class MarketGuardCommand {
     }
 
     private static int setPlayerHudPreset(FabricClientCommandSource source, String preset) {
-        try {
-            MarketGuardConfig.setPlayerHudPreset(preset);
-        } catch (IllegalArgumentException exception) {
-            return 0;
-        }
+        MarketGuardConfig.setPlayerHudPreset(preset);
         MarketGuardConfig.save();
-        PlayerHud.setPreset(preset);
         source.sendFeedback(message(Component.literal("Player HUD preset set to " + preset + ".").withStyle(ChatFormatting.GREEN)));
         return 1;
     }
@@ -281,11 +276,7 @@ public final class MarketGuardCommand {
         return MessageBuilder.PREFIX.copy().append(text);
     }
 
-    private static String formatPrice(double price) {
-        if (Math.abs(price - Math.rint(price)) < 0.005) {
-            return String.format(java.util.Locale.US, "%,.0f", price);
-        }
-
-        return String.format(java.util.Locale.US, "%,.2f", price);
+    private static String formatPrice(long price) {
+        return String.format(java.util.Locale.US, "%,d", price);
     }
 }

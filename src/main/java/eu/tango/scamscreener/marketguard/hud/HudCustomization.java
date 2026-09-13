@@ -75,7 +75,7 @@ public final class HudCustomization {
         return result;
     }
 
-    public static boolean rowEnabled(HudId hud, String row) {
+    private static boolean rowEnabled(HudId hud, String row) {
         return rowValues(hud).stream().noneMatch(value -> value.equals("!" + row));
     }
 
@@ -97,47 +97,6 @@ public final class HudCustomization {
         if (!values.remove(key)) {
             values.add(key);
         }
-        MarketGuardConfig.save();
-    }
-
-    public static void toggleRow(HudId hud, String row) {
-        List<String> values = rowValues(hud);
-        if (values.remove(row)) {
-            values.add("!" + row);
-        } else if (values.remove("!" + row)) {
-            values.add(row);
-        } else {
-            values.add("!" + row);
-        }
-        MarketGuardConfig.save();
-    }
-
-    public static void moveRow(HudId hud, String row, int direction) {
-        List<String> values = rowValues(hud);
-        int index = values.indexOf(row);
-        if (index < 0) {
-            index = values.indexOf("!" + row);
-        }
-        int target = index + direction;
-        if (index < 0 || target < 0 || target >= values.size()) {
-            return;
-        }
-        String value = values.remove(index);
-        values.add(target, value);
-        MarketGuardConfig.save();
-    }
-
-    static void moveRowTo(HudId hud, String row, int target) {
-        List<String> values = rowValues(hud);
-        int index = values.indexOf(row);
-        if (index < 0) {
-            index = values.indexOf("!" + row);
-        }
-        if (index < 0 || target < 0 || target >= values.size() || index == target) {
-            return;
-        }
-        String value = values.remove(index);
-        values.add(target, value);
         MarketGuardConfig.save();
     }
 
@@ -243,9 +202,7 @@ public final class HudCustomization {
         screens(hud).clear();
         screens(hud).addAll(defaultScreens(hud));
         rowValues(hud).clear();
-        rowValues(hud).addAll(hud == HudId.AUCTION_PRICE
-                ? List.of("item", "auction", "lowest_bin", "advice", "!difference", "volatility", "liquidity", "stale")
-                : defaultRows(hud));
+        rowValues(hud).addAll(hud == HudId.AUCTION_PRICE ? MarketGuardConfig.DEFAULT_AUCTION_PRICE_HUD_ROWS : defaultRows(hud));
         MarketGuardConfig.save();
     }
 
@@ -263,10 +220,6 @@ public final class HudCustomization {
             ).bounds(controlsX, 0, 150, 20).build()),
                     Component.translatable("marketguard.hud." + hud.key()), entryInfo);
         }
-    }
-
-    static Component visibilityLabel(boolean visible) {
-        return Component.translatable(visible ? "marketguard.hud.visible" : "marketguard.hud.hidden");
     }
 
     private static List<String> screens(HudId hud) {
@@ -293,27 +246,23 @@ public final class HudCustomization {
 
     private static List<String> defaultScreens(HudId hud) {
         return switch (hud) {
-            case AUCTION_PRICE -> List.of("bin_view");
-            case PLAYER -> List.of("trade", "profile", "bin_view");
-            case TRADE_GUARD -> List.of("trade");
-            case MINION_PROFIT -> List.of("minion");
-            case FORGE_PROFIT -> List.of("forge");
-            case PROFIT_TRACKER -> List.of("ingame");
+            case AUCTION_PRICE -> MarketGuardConfig.DEFAULT_AUCTION_PRICE_HUD_SCREENS;
+            case PLAYER -> MarketGuardConfig.DEFAULT_PLAYER_HUD_SCREENS;
+            case TRADE_GUARD -> MarketGuardConfig.DEFAULT_TRADE_GUARD_HUD_SCREENS;
+            case MINION_PROFIT -> MarketGuardConfig.DEFAULT_MINION_PROFIT_HUD_SCREENS;
+            case FORGE_PROFIT -> MarketGuardConfig.DEFAULT_FORGE_PROFIT_HUD_SCREENS;
+            case PROFIT_TRACKER -> MarketGuardConfig.DEFAULT_PROFIT_TRACKER_HUD_SCREENS;
         };
     }
 
     private static List<String> defaultRows(HudId hud) {
         return switch (hud) {
-            case AUCTION_PRICE -> List.of("item", "auction", "lowest_bin", "advice", "difference", "volatility", "liquidity", "stale");
-            case PLAYER -> List.of(
-                    "name", "seen", "scamscreener", "status", "wealth", "profile_value",
-                    "first_join", "profile", "value_coverage", "value_missing", "value_status",
-                    "museum", "museum_items", "armor", "equipment", "pet", "skills", "uuid", "data"
-            );
-            case TRADE_GUARD -> List.of("own_value", "partner_value", "difference", "unpriced", "data", "warning");
-            case MINION_PROFIT -> List.of("held_coins", "profit", "missing", "loading", "unavailable", "stale");
-            case FORGE_PROFIT -> List.of("profit", "missing", "loading", "unavailable", "stale");
-            case PROFIT_TRACKER -> List.of("bazaar", "auction_house", "minion", "interest", "allowance", "total");
+            case AUCTION_PRICE -> MarketGuardConfig.AUCTION_PRICE_HUD_ROW_IDS;
+            case PLAYER -> MarketGuardConfig.DEFAULT_PLAYER_HUD_ROWS;
+            case TRADE_GUARD -> MarketGuardConfig.DEFAULT_TRADE_GUARD_HUD_ROWS;
+            case MINION_PROFIT -> MarketGuardConfig.DEFAULT_MINION_PROFIT_HUD_ROWS;
+            case FORGE_PROFIT -> MarketGuardConfig.DEFAULT_FORGE_PROFIT_HUD_ROWS;
+            case PROFIT_TRACKER -> MarketGuardConfig.DEFAULT_PROFIT_TRACKER_HUD_ROWS;
         };
     }
 

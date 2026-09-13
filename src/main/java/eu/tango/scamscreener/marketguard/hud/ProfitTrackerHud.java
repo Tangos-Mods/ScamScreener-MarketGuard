@@ -23,16 +23,10 @@ import java.util.Map;
 
 public final class ProfitTrackerHud {
     private static KeyMapping toggleKey;
-    private static boolean initialized;
 
     private ProfitTrackerHud() {}
 
     public static void initialize() {
-        if (initialized) {
-            return;
-        }
-        initialized = true;
-
         toggleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "Profit Tracker Display",
                 InputConstants.Type.KEYSYM,
@@ -69,8 +63,8 @@ public final class ProfitTrackerHud {
         ));
     }
 
-    public static HudContent content(boolean playerPresent, String profileId) {
-        if (!isDisplayEnabled() || !playerPresent || !ProfitTracker.isSkyBlockSessionActive()) {
+    public static HudContent content(String profileId) {
+        if (!isDisplayEnabled() || !ProfitTracker.isSkyBlockSessionActive()) {
             return HudContent.builder()
                     .line(Component.literal("Profit Tracker"))
                     .visible(false)
@@ -123,10 +117,11 @@ public final class ProfitTrackerHud {
         @HudWidget(id = "profit_tracker")
         public static HudContent profitTracker() {
             Minecraft client = Minecraft.getInstance();
-            if (!HudCustomization.visibleOnCurrentScreen(HudCustomization.HudId.PROFIT_TRACKER)) {
+            if (!HudCustomization.visibleOnCurrentScreen(HudCustomization.HudId.PROFIT_TRACKER)
+                    || !isDisplayEnabled() || client.player == null || !ProfitTracker.isSkyBlockSessionActive()) {
                 return HudContent.builder().line(Component.literal("Profit Tracker")).visible(false).build();
             }
-            return content(client.player != null, ProfileResolver.resolveCurrentProfileId(client));
+            return content(ProfileResolver.resolveCurrentProfileId(client));
         }
     }
 }

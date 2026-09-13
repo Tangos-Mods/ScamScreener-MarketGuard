@@ -51,7 +51,6 @@ class PlayerHudTest {
     @Test
     void partialPlayerDataShowsNoStatusLine() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = new JsonObject();
         player.addProperty("status", "partial");
         player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
@@ -92,7 +91,6 @@ class PlayerHudTest {
     @Test
     void compactPresetStartsWithThePlayerAndFormatsSeenLikeTheEditorPreview() {
         MarketGuardConfig.setPlayerHudPreset("compact");
-        PlayerHud.setPreset("compact");
         JsonObject player = new JsonObject();
         player.addProperty("status", "ok");
         player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
@@ -120,7 +118,6 @@ class PlayerHudTest {
         assertTrue(lines.stream().noneMatch(line -> line.startsWith("marketguard.hud.scamscreener.")));
 
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, true, false)
                 .lines().stream().map(line -> line.getString()).toList();
         assertTrue(lines.contains("marketguard.hud.scamscreener.not_installed"));
@@ -152,7 +149,6 @@ class PlayerHudTest {
     @Test
     void replacesTheUpdateTimeWithAWarningForStaleData() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = new JsonObject();
         player.addProperty("status", "ok");
         player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
@@ -172,7 +168,6 @@ class PlayerHudTest {
     @Test
     void showsFailedFinanceRefreshWithoutANetWorthLine() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
         PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(null, false, false, true));
 
@@ -186,7 +181,6 @@ class PlayerHudTest {
     @Test
     void showsLoadingAndOutdatedFinanceDataAsWarnings() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
         PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(null, false, true, false));
 
@@ -194,7 +188,7 @@ class PlayerHudTest {
                 .lines().stream().map(line -> line.getString()).toList();
         assertTrue(lines.contains("Loading finance data..."));
 
-        PlayerFinanceData.Museum museum = new PlayerFinanceData.Museum(25_000_000.0, null, List.of(), 2, List.of(), 0);
+        PlayerFinanceData.Museum museum = new PlayerFinanceData.Museum(25_000_000.0, null, 2, 0);
         PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(
                 financeResponse("ok", 11_000_000.0, museum, List.of()),
                 true,
@@ -207,6 +201,15 @@ class PlayerHudTest {
         assertTrue(lines.contains("Est. net worth: ~11,000,000"));
         assertTrue(lines.contains("Museum: 25,000,000"));
         assertTrue(lines.contains("Museum: 2 exhibits (0 special)"));
+        assertTrue(lines.contains("Some values may be outdated"));
+
+        PlayerFinanceData.Response fresh = financeResponse("ok", 11_000_000.0, museum, List.of());
+        PlayerFinanceData.Response serverStale = new PlayerFinanceData.Response(
+                fresh.status(), true, fresh.playerUuid(), fresh.profile(), fresh.unavailableFields());
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(serverStale, false, false, false));
+
+        lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                .lines().stream().map(line -> line.getString()).toList();
         assertTrue(lines.contains("Some values may be outdated"));
     }
 
@@ -224,7 +227,6 @@ class PlayerHudTest {
     @Test
     void rendersAvailableFieldsEvenWhenPlayerStatusIsUnavailable() {
         MarketGuardConfig.setPlayerHudPreset("profile");
-        PlayerHud.setPreset("profile");
         JsonObject player = new JsonObject();
         player.addProperty("status", "unavailable");
         player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
@@ -252,7 +254,6 @@ class PlayerHudTest {
     @Test
     void requestFailureStillShowsTheKnownTargetName() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         List<String> lines = PlayerHud.errorContent(new PlayerHud.Target("Pankraz01", null))
                 .lines().stream().map(line -> line.getString()).toList();
 
@@ -275,7 +276,6 @@ class PlayerHudTest {
     @Test
     void requestFailureKeepsTheKnownUuidInsteadOfShowingNa() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         MarketGuardConfig.setPlayerHudShowUnavailableRows(true);
         String uuid = "fd9347ca546f4a4c89239665caa0385c";
 
@@ -303,7 +303,6 @@ class PlayerHudTest {
     @Test
     void requestFailureShowsUnavailableRowsWhenEnabled() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         MarketGuardConfig.setPlayerHudShowUnavailableRows(true);
 
         List<String> lines = PlayerHud.errorContent(new PlayerHud.Target("Hype_the_Time", null))
@@ -318,7 +317,6 @@ class PlayerHudTest {
     @Test
     void allPresetShowsEveryAvailablePlayerGroup() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = new JsonObject();
         player.addProperty("status", "ok");
         player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
@@ -356,7 +354,6 @@ class PlayerHudTest {
     @Test
     void estimatesOnlyVisibleBalancesAndPricedArmorOrEquipment() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = new JsonObject();
         player.addProperty("status", "ok");
         player.addProperty("uuid", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -417,7 +414,6 @@ class PlayerHudTest {
     @Test
     void reportsUnpricedGearInsteadOfPriceJargon() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
         JsonArray armor = new JsonArray();
         armor.add(item("HELMET", "Helmet", 1));
@@ -448,16 +444,8 @@ class PlayerHudTest {
     @Test
     void showsServerMuseumValueAndExhibitsWithoutFinanceDiagnostics() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
-        PlayerFinanceData.Museum museum = new PlayerFinanceData.Museum(
-                25_000_000.0,
-                true,
-                List.of("HYPERION", "TERMINATOR"),
-                2,
-                List.of("DCTR_SPACE_HELM"),
-                1
-        );
+        PlayerFinanceData.Museum museum = new PlayerFinanceData.Museum(25_000_000.0, true, 2, 1);
         PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(
                 financeResponse("partial", 130_000_000.0, museum, List.of("profile.finance.purse")),
                 false,
@@ -477,13 +465,12 @@ class PlayerHudTest {
     @Test
     void privateFinanceDoesNotLeakReturnedValues() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
         PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(
                 financeResponse(
                         "private",
                         130_000_000.0,
-                        new PlayerFinanceData.Museum(25_000_000.0, null, List.of(), 0, List.of(), 0),
+                        new PlayerFinanceData.Museum(25_000_000.0, null, 0, 0),
                         List.of("profile.finance", "profile.museum")
                 ),
                 false,
@@ -501,7 +488,6 @@ class PlayerHudTest {
     @Test
     void compactPresetHidesTheNetWorthLineWhileFinanceIsUnavailable() {
         MarketGuardConfig.setPlayerHudPreset("compact");
-        PlayerHud.setPreset("compact");
         JsonObject player = playerWithProfileIds();
         JsonObject wealth = player.getAsJsonObject("profile").getAsJsonObject("wealth");
         wealth.addProperty("purse", 1_000_000.0);
@@ -529,7 +515,6 @@ class PlayerHudTest {
     @Test
     void emptyGearArraysShowNoPricedGearLine() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
         JsonObject wealth = player.getAsJsonObject("profile").getAsJsonObject("wealth");
         wealth.add("armor", new JsonArray());
@@ -551,7 +536,6 @@ class PlayerHudTest {
     @Test
     void gearPricesStillLoadingShowTheLoadingWarning() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         JsonObject player = playerWithProfileIds();
         JsonArray armor = new JsonArray();
         armor.add(item("HELMET", "Helmet", 1));
@@ -597,7 +581,6 @@ class PlayerHudTest {
     @Test
     void unavailableRowsCanBeShownAsNaInsteadOfBeingHidden() {
         MarketGuardConfig.setPlayerHudPreset("all");
-        PlayerHud.setPreset("all");
         MarketGuardConfig.setPlayerHudShowUnavailableRows(true);
         JsonObject player = new JsonObject();
         player.addProperty("status", "partial");
@@ -618,7 +601,7 @@ class PlayerHudTest {
 
     @Test
     void unavailableRowsStayHiddenByDefault() {
-        PlayerHud.setPreset("all");
+        MarketGuardConfig.setPlayerHudPreset("all");
         JsonObject player = new JsonObject();
         player.addProperty("status", "partial");
         player.addProperty("name", "Pankraz01");
@@ -659,12 +642,9 @@ class PlayerHudTest {
         return new PlayerFinanceData.Response(
                 status,
                 false,
-                1715478978620L,
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 new PlayerFinanceData.Profile(
                         "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                        "Apple",
-                        true,
                         new PlayerFinanceData.Finance(10_000_000.0, 1_000_000.0, null, knownTotal),
                         museum
                 ),

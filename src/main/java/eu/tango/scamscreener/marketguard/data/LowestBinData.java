@@ -38,29 +38,9 @@ public final class LowestBinData {
             boolean loading,
             boolean refreshFailed
     ) {
-        public LookupResult(Double value, Double average7d, boolean stale, boolean loading, boolean refreshFailed) {
-            this(value, average7d, null, stale, loading, refreshFailed);
-        }
-
-        public LookupResult(Double value, boolean stale, boolean loading, boolean refreshFailed) {
-            this(value, null, null, stale, loading, refreshFailed);
-        }
-
         public boolean hasValue() {
             return value != null;
         }
-    }
-
-    public static double getLowestBin(String itemId) throws Exception {
-        JsonObject snapshot = getSnapshot();
-        Double lowestBin = readPrice(snapshot, itemId);
-        if (lowestBin == null) {
-            throw new Exception("Item not found");
-        }
-
-        notifyBlacklistedAuctioneerIfPresent(snapshot, itemId);
-        MarketGuard.debug("Lowest BIN lookup hit itemId='{}' value={}", itemId, lowestBin);
-        return lowestBin;
     }
 
     public static LookupResult lookupLowestBin(String itemId) {
@@ -73,36 +53,26 @@ public final class LowestBinData {
 
     private static LookupResult lookupPriceData(String itemId, boolean notifyAuctioneer) {
         SnapshotCache.View cacheView = CACHE.view();
+        JsonObject product = readProduct(cacheView.snapshot(), itemId);
         if (notifyAuctioneer) {
-            notifyBlacklistedAuctioneerIfPresent(cacheView.snapshot(), itemId);
+            notifyBlacklistedAuctioneerIfPresent(product, itemId);
         }
-        Double value = readPrice(cacheView.snapshot(), itemId);
-        Double average7d = readAverage7d(cacheView.snapshot(), itemId);
-        Double average30d = readAverage30d(cacheView.snapshot(), itemId);
-
-        if (value != null || average7d != null || average30d != null) {
-            MarketGuard.debug(
-                    "Using {} Lowest BIN cache itemId='{}' lowestBin={} average7d={} average30d={} loading={} refreshFailed={}",
-                    cacheView.stale() ? "stale" : "fresh",
-                    itemId,
-                    value,
-                    average7d,
-                    average30d,
-                    cacheView.loading(),
-                    cacheView.refreshFailed()
-            );
-            return new LookupResult(value, average7d, average30d, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
-        }
+        Double value = product != null && product.has("price") ? product.get("price").getAsDouble() : null;
+        Double average7d = readPositiveAverage(product, "avg7d");
+        Double average30d = readPositiveAverage(product, "avg30d");
 
         MarketGuard.debug(
-                "No cached Lowest BIN value for itemId='{}' hasSnapshot={} stale={} loading={} lastRefreshAttemptFailed={}",
+                "Lowest BIN lookup itemId='{}' hasSnapshot={} lowestBin={} average7d={} average30d={} stale={} loading={} refreshFailed={}",
                 itemId,
                 cacheView.snapshot() != null,
+                value,
+                average7d,
+                average30d,
                 cacheView.stale(),
                 cacheView.loading(),
                 cacheView.refreshFailed()
         );
-        return new LookupResult(null, null, null, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
+        return new LookupResult(value, average7d, average30d, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
     }
 
     public static String findItemIdByName(String displayName) {
@@ -128,7 +98,7 @@ public final class LowestBinData {
 
         JsonObject snapshot = CACHE.cachedSnapshot();
         if (snapshot != null) {
-            notifyBlacklistedAuctioneerIfPresent(snapshot, itemId);
+            notifyBlacklistedAuctioneerIfPresent(readProduct(snapshot, itemId), itemId);
             if (CACHE.hasFreshSnapshotNow()) {
                 return;
             }
@@ -141,16 +111,12 @@ public final class LowestBinData {
             return;
         }
 
-        refreshFuture.thenAccept(refreshedSnapshot -> notifyBlacklistedAuctioneerIfPresent(refreshedSnapshot, itemId))
+        refreshFuture.thenAccept(refreshedSnapshot -> notifyBlacklistedAuctioneerIfPresent(readProduct(refreshedSnapshot, itemId), itemId))
                 .exceptionally(throwable -> null);
     }
 
     public static void resetBlacklistNoticeState() {
         lastBlacklistNoticeKey = null;
-    }
-
-    static JsonObject getSnapshot() throws Exception {
-        return CACHE.getSnapshot("Lowest BIN", LowestBinData::fetchLowestBinSnapshot);
     }
 
     private static CompletableFuture<JsonObject> fetchLowestBinSnapshotAsync() {
@@ -177,59 +143,13 @@ public final class LowestBinData {
                 });
     }
 
-    private static JsonObject fetchLowestBinSnapshot() throws Exception {
-        long startedAt = System.currentTimeMillis();
-        MarketGuard.debug("Fetching Lowest BIN snapshot from {}", URL);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(URL))
-                .header("User-Agent", MarketGuard.userAgent())
-                .timeout(REQUEST_TIMEOUT)
-                .GET()
-                .build();
-
-        HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-        long durationMs = System.currentTimeMillis() - startedAt;
-        MarketGuard.debug(
-                "Lowest BIN response status={} durationMs={} bodyLength={}",
-                response.statusCode(),
-                durationMs,
-                response.body().length()
-        );
-        return parseSnapshot(response);
-    }
-
-    private static Double readPrice(JsonObject snapshot, String itemId) {
-        JsonObject product = readProduct(snapshot, itemId);
-        if (product == null) {
+    private static Double readPositiveAverage(JsonObject product, String field) {
+        if (product == null || !product.has(field)) {
             return null;
         }
 
-        if (!product.has("price")) {
-            return null;
-        }
-
-        return product.get("price").getAsDouble();
-    }
-
-    private static Double readAverage7d(JsonObject snapshot, String itemId) {
-        JsonObject product = readProduct(snapshot, itemId);
-        if (product == null || !product.has("avg7d")) {
-            return null;
-        }
-
-        double average7d = product.get("avg7d").getAsDouble();
-        return Double.isFinite(average7d) && average7d > 0.0 ? average7d : null;
-    }
-
-    private static Double readAverage30d(JsonObject snapshot, String itemId) {
-        JsonObject product = readProduct(snapshot, itemId);
-        if (product == null || !product.has("avg30d")) {
-            return null;
-        }
-
-        double average30d = product.get("avg30d").getAsDouble();
-        return Double.isFinite(average30d) && average30d > 0.0 ? average30d : null;
+        double average = product.get(field).getAsDouble();
+        return Double.isFinite(average) && average > 0.0 ? average : null;
     }
 
     private static JsonObject readProduct(JsonObject snapshot, String itemId) {
@@ -269,8 +189,7 @@ public final class LowestBinData {
         return root.getAsJsonObject("products");
     }
 
-    private static void notifyBlacklistedAuctioneerIfPresent(JsonObject snapshot, String itemId) {
-        JsonObject product = readProduct(snapshot, itemId);
+    private static void notifyBlacklistedAuctioneerIfPresent(JsonObject product, String itemId) {
         if (product == null) {
             return;
         }

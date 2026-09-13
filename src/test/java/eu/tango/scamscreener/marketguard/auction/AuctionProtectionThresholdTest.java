@@ -62,11 +62,8 @@ class AuctionProtectionThresholdTest {
     void absoluteThresholdMustAlsoBeExceeded() {
         eu.tango.scamscreener.marketguard.MarketGuardConfig.setAbsoluteThreshold(10_000L);
 
-        assertFalse(AuctionUnderbidding.exceedsAbsoluteThreshold(9_999.99));
-        assertTrue(AuctionUnderbidding.exceedsAbsoluteThreshold(10_000.0));
-
-        assertFalse(AuctionOverbidding.exceedsAbsoluteThreshold(9_999.99));
-        assertTrue(AuctionOverbidding.exceedsAbsoluteThreshold(10_000.0));
+        assertFalse(AuctionProtectionChecks.exceedsAbsoluteThreshold(9_999.99));
+        assertTrue(AuctionProtectionChecks.exceedsAbsoluteThreshold(10_000.0));
     }
 
     @Test

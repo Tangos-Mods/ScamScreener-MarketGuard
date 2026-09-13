@@ -8,7 +8,6 @@ import java.util.Locale;
 public enum AuctionInventory {
 
     MAIN("Auction House"),
-    MAIN_COOP("Co-op Auction House"),
     CREATE_BIN("Create BIN Auction"),
     CONFIRM_BIN("Confirm BIN Auction"),
     BROWSER("Auction Browser"),

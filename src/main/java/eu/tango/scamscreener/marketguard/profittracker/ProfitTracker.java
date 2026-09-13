@@ -78,16 +78,6 @@ public final class ProfitTracker {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clearEphemeralState());
     }
 
-    public static double getBazaarAllTimeProfit() {
-        String profileId = ProfileResolver.resolveCurrentProfileId(Minecraft.getInstance());
-        return profileId == null ? 0.0 : getBazaarAllTimeProfit(profileId);
-    }
-
-    public static double getAuctionHouseAllTimeProfit() {
-        String profileId = ProfileResolver.resolveCurrentProfileId(Minecraft.getInstance());
-        return profileId == null ? 0.0 : getAuctionHouseAllTimeProfit(profileId);
-    }
-
     public static double getBazaarAllTimeProfit(String profileId) {
         synchronized (LOCK) {
             ProfileProfitState profile = state.getProfile(profileId);
@@ -295,32 +285,6 @@ public final class ProfitTracker {
                     System.currentTimeMillis()
             ));
             saveState();
-        }
-    }
-
-    static boolean confirmBazaarFill(String profileId, BazaarTradeKind kind, String itemId) {
-        synchronized (LOCK) {
-            ProfileProfitState profile = state.getProfile(profileId);
-            if (profile == null) {
-                return false;
-            }
-
-            PendingBazaarOrder match = findPendingBazaarOrder(profile.pendingBazaarOrders, kind, itemId, null);
-            if (match == null) {
-                return false;
-            }
-
-            if (kind.isBuy()) {
-                if (!match.purchaseCostRecorded) {
-                    recordBazaarTrade(profile, kind, match.itemId, match.itemName, match.quantity, match.quotedTotalCoins);
-                    match.purchaseCostRecorded = true;
-                }
-                match.filled = true;
-            } else {
-                match.filled = true;
-            }
-            saveState();
-            return true;
         }
     }
 

@@ -30,11 +30,6 @@ final class SnapshotCache {
     private record NameIndex(JsonObject snapshot, Map<String, String> itemIdsByName) {}
 
     @FunctionalInterface
-    interface SyncFetcher {
-        JsonObject fetch() throws Exception;
-    }
-
-    @FunctionalInterface
     interface AsyncFetcher {
         CompletableFuture<JsonObject> fetch();
     }
@@ -77,41 +72,6 @@ final class SnapshotCache {
         }
 
         return index.itemIdsByName().get(SnapshotDataUtil.normalizeName(displayName));
-    }
-
-    JsonObject getSnapshot(String name, SyncFetcher fetcher) throws Exception {
-        long now = System.currentTimeMillis();
-        JsonObject snapshot = cachedSnapshot;
-        if (snapshot != null && now < cacheExpiresAtMs) {
-            MarketGuard.debug("Using cached {} snapshot expiresInMs={}", name, cacheExpiresAtMs - now);
-            return snapshot;
-        }
-
-        boolean shouldFetch = false;
-        synchronized (lock) {
-            now = System.currentTimeMillis();
-            if (cachedSnapshot != null && now < cacheExpiresAtMs) {
-                MarketGuard.debug("Using cached {} snapshot after lock expiresInMs={}", name, cacheExpiresAtMs - now);
-                return cachedSnapshot;
-            }
-            shouldFetch = true;
-        }
-
-        if (!shouldFetch) {
-            return cachedSnapshot;
-        }
-
-        JsonObject fresh = fetcher.fetch();
-        synchronized (lock) {
-            if (cachedSnapshot != null && System.currentTimeMillis() < cacheExpiresAtMs) {
-                return cachedSnapshot;
-            }
-
-            cachedSnapshot = fresh;
-            cacheExpiresAtMs = System.currentTimeMillis() + ttlMs;
-            MarketGuard.debug("Cached {} snapshot entries={} ttlMs={}", name, fresh.size(), ttlMs);
-            return fresh;
-        }
     }
 
     void refreshAsyncIfNeeded(

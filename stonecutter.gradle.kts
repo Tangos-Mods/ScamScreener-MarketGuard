@@ -35,12 +35,3 @@ tasks.register("buildDevJars") {
     description = "Builds local-API development JARs for every configured Stonecutter version."
     dependsOn(stonecutter.tasks.named("devJar").map { it.values })
 }
-
-// See https://stonecutter.kikugie.dev/wiki/config/params
-stonecutter parameters {
-    swaps["mod_version"] = "\"${property("mod.version")}\";"
-    swaps["minecraft"] = "\"${node.metadata.version}\";"
-    constants["release"] = true
-    dependencies["fapi"] = node.project.property("deps.fabric_api") as String
-
-}

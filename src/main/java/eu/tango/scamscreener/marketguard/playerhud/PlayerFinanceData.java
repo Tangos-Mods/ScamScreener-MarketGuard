@@ -35,26 +35,13 @@ public final class PlayerFinanceData {
 
     public record Finance(Double bank, Double purse, Double museumValue, Double knownTotal) {}
 
-    public record Museum(
-            Double value,
-            Boolean appraisal,
-            List<String> donatedIds,
-            Integer donatedCount,
-            List<String> specialIds,
-            Integer specialCount
-    ) {
-        public Museum {
-            donatedIds = donatedIds == null ? List.of() : List.copyOf(donatedIds);
-            specialIds = specialIds == null ? List.of() : List.copyOf(specialIds);
-        }
-    }
+    public record Museum(Double value, Boolean appraisal, Integer donatedCount, Integer specialCount) {}
 
-    public record Profile(String id, String name, Boolean selected, Finance finance, Museum museum) {}
+    public record Profile(String id, Finance finance, Museum museum) {}
 
     public record Response(
             String status,
             boolean stale,
-            Long fetchedAt,
             String playerUuid,
             Profile profile,
             List<String> unavailableFields
@@ -171,15 +158,12 @@ public final class PlayerFinanceData {
         JsonObject profileJson = object(root, "profile");
         Profile profile = profileJson == null ? null : new Profile(
                 text(profileJson, "id"),
-                text(profileJson, "name"),
-                bool(profileJson, "selected"),
                 finance(object(profileJson, "finance")),
                 museum(object(profileJson, "museum"))
         );
         return new Response(
                 status,
                 Boolean.TRUE.equals(bool(root, "stale")),
-                integer(root, "fetchedAt"),
                 text(root, "playerUuid"),
                 profile,
                 strings(array(root, "unavailableFields"))
@@ -207,8 +191,7 @@ public final class PlayerFinanceData {
         if (cached == null) {
             return new LookupResult(null, false, loading, refreshFailed);
         }
-        boolean stale = cached.response().stale()
-                || System.currentTimeMillis() - cached.cachedAt() >= CACHE_TTL_MILLIS;
+        boolean stale = System.currentTimeMillis() - cached.cachedAt() >= CACHE_TTL_MILLIS;
         return new LookupResult(cached.response(), stale, loading, refreshFailed);
     }
 
@@ -230,9 +213,7 @@ public final class PlayerFinanceData {
         return value == null ? null : new Museum(
                 number(value, "value"),
                 bool(value, "appraisal"),
-                strings(array(value, "donatedIds")),
                 count(value, "donatedCount"),
-                strings(array(value, "specialIds")),
                 count(value, "specialCount")
         );
     }

@@ -63,9 +63,4 @@ public final class AuctionUnderbidding {
 
         MarketGuard.debug("Underbidding check passed itemId='{}'", pricing.itemId());
     }
-
-    static boolean exceedsAbsoluteThreshold(double absoluteDifference) {
-        return AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference);
-    }
-
 }

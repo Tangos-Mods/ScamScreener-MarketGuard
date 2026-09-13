@@ -43,46 +43,19 @@ public final class BazaarData {
         }
     }
 
-    public static Product getProduct(String itemId) throws Exception {
-        JsonObject snapshot = getSnapshot();
-        Product product = readProduct(snapshot, itemId);
-        if (product == null) {
-            throw new Exception("Item not found");
-        }
-
-        MarketGuard.debug(
-                "Bazaar lookup hit itemId='{}' buy={} sell={}",
-                itemId,
-                product.buy(),
-                product.sell()
-        );
-        return product;
-    }
-
     public static LookupResult lookupProduct(String itemId) {
         SnapshotCache.View cacheView = CACHE.view();
         Product value = readProduct(cacheView.snapshot(), itemId);
-
-        if (value != null) {
-            MarketGuard.debug(
-                    "Using {} Bazaar cache itemId='{}' loading={} refreshFailed={}",
-                    cacheView.stale() ? "stale" : "fresh",
-                    itemId,
-                    cacheView.loading(),
-                    cacheView.refreshFailed()
-            );
-            return new LookupResult(value, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
-        }
-
         MarketGuard.debug(
-                "No cached Bazaar value for itemId='{}' hasSnapshot={} stale={} loading={} lastRefreshAttemptFailed={}",
+                "Bazaar lookup itemId='{}' hasSnapshot={} found={} stale={} loading={} refreshFailed={}",
                 itemId,
                 cacheView.snapshot() != null,
+                value != null,
                 cacheView.stale(),
                 cacheView.loading(),
                 cacheView.refreshFailed()
         );
-        return new LookupResult(null, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
+        return new LookupResult(value, cacheView.stale(), cacheView.loading(), cacheView.refreshFailed());
     }
 
     public static String findItemIdByName(String displayName) {
@@ -93,10 +66,6 @@ public final class BazaarData {
         CACHE.refreshAsyncIfNeeded("Bazaar", BazaarData::fetchSnapshotAsync, null, null);
         CompletableFuture<JsonObject> refresh = CACHE.refreshInFlight();
         return refresh == null ? CompletableFuture.completedFuture(null) : refresh.handle((snapshot, throwable) -> null);
-    }
-
-    static JsonObject getSnapshot() throws Exception {
-        return CACHE.getSnapshot("Bazaar", BazaarData::fetchSnapshot);
     }
 
     private static CompletableFuture<JsonObject> fetchSnapshotAsync() {
@@ -121,28 +90,6 @@ public final class BazaarData {
                     );
                     return parseSnapshot(response);
                 });
-    }
-
-    private static JsonObject fetchSnapshot() throws Exception {
-        long startedAt = System.currentTimeMillis();
-        MarketGuard.debug("Fetching Bazaar snapshot from {}", URL);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(URL))
-                .header("User-Agent", MarketGuard.userAgent())
-                .timeout(REQUEST_TIMEOUT)
-                .GET()
-                .build();
-
-        HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-        long durationMs = System.currentTimeMillis() - startedAt;
-        MarketGuard.debug(
-                "Bazaar response status={} durationMs={} bodyLength={}",
-                response.statusCode(),
-                durationMs,
-                response.body().length()
-        );
-        return parseSnapshot(response);
     }
 
     private static Product readProduct(JsonObject snapshot, String itemId) {

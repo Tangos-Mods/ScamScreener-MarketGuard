@@ -72,8 +72,4 @@ public final class AuctionOverbidding {
 
         MarketGuard.debug("Overbidding check passed itemId='{}'", pricing.itemId());
     }
-
-    static boolean exceedsAbsoluteThreshold(double absoluteDifference) {
-        return AuctionProtectionChecks.exceedsAbsoluteThreshold(absoluteDifference);
-    }
 }

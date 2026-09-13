@@ -23,8 +23,6 @@ public final class VisibleProfileValue {
     public record Estimate(
             double value,
             boolean hasValue,
-            int includedBalances,
-            int missingBalances,
             int pricedItems,
             int visibleItems,
             int missingItemPrices,
@@ -35,21 +33,12 @@ public final class VisibleProfileValue {
     ) {}
 
     public static Estimate estimate(
-            Double bank,
-            Double purse,
+            Double knownFinance,
             List<Item> items,
             Function<String, ItemPrice> priceLookup
     ) {
-        double value = 0.0;
-        int includedBalances = 0;
-        if (validBalance(bank)) {
-            value += bank;
-            includedBalances++;
-        }
-        if (validBalance(purse)) {
-            value += purse;
-            includedBalances++;
-        }
+        boolean financeKnown = validBalance(knownFinance);
+        double value = financeKnown ? knownFinance : 0.0;
         int pricedItems = 0;
         int visibleItems = 0;
         int missingItemPrices = 0;
@@ -89,9 +78,7 @@ public final class VisibleProfileValue {
 
         return new Estimate(
                 value,
-                includedBalances > 0 || pricedItems > 0,
-                includedBalances,
-                2 - includedBalances,
+                financeKnown || pricedItems > 0,
                 pricedItems,
                 visibleItems,
                 missingItemPrices,

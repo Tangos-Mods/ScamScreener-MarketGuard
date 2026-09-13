@@ -310,10 +310,6 @@ public final class TradeGuardHud {
     record OfferItem(String itemId, int count) {}
 
     record Offer(List<OfferItem> items, int unidentifiedStacks) {
-        static Offer empty() {
-            return new Offer(List.of(), 0);
-        }
-
         boolean hasItems() {
             return unidentifiedStacks > 0 || !items.isEmpty();
         }

@@ -26,12 +26,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 @Mixin(AbstractContainerScreen.class)
 public abstract class AuctionHouseMixin {
-    private static final AtomicInteger BYPASS_COUNTDOWN = new AtomicInteger();
-    private static volatile String BYPASS_TITLE = null;
+    // slotClicked and removed() only run on the render thread, so no atomics needed.
+    private static int bypassCountdown = 0;
     private static volatile String pendingConfirmPurchaseItemId = null;
     private static volatile String lastSeenBinItemId = null;
     @Unique
@@ -63,9 +61,7 @@ public abstract class AuctionHouseMixin {
         MarketGuard.debug("Auction screen opened title='{}', requesting Lowest BIN refresh if needed", title);
         LowestBinData.refreshAsyncIfNeeded();
         debugPurchaseFlowSlots(screen, title);
-        if (shouldTriggerBlacklistCheckOnOpen(title)) {
-            triggerBlacklistCheck(screen, title);
-        }
+        triggerBlacklistCheck(screen, title);
     }
 
     @Inject(
@@ -90,8 +86,8 @@ public abstract class AuctionHouseMixin {
                     slotId,
                     button,
                     actionType,
-                    clicks -> scheduleBypass(currentTitle, clicks),
-                    () -> BYPASS_COUNTDOWN.get()
+                    AuctionHouseMixin::scheduleBypass,
+                    () -> bypassCountdown
             );
         }
         if (isAuctionScreen(currentTitle)) {
@@ -102,26 +98,24 @@ public abstract class AuctionHouseMixin {
                     button,
                     actionType,
                     slot.getItem().isEmpty() ? "<empty>" : slot.getItem().getHoverName().getString(),
-                    BYPASS_COUNTDOWN.get()
+                    bypassCountdown
             );
             if (context != null && context.isBinView()) {
                 rememberPendingConfirmPurchaseItemId(context.getAuctionItemId());
             }
         }
-        resetBypassIfTitleChanged(currentTitle);
         if (consumeBypass()) return;
 
         if (context == null) return;
-        String screenTitle = screen.getTitle() != null ? screen.getTitle().getString() : currentTitle;
         AuctionInteractEvent.EVENT.invoker().onInteract(context);
 
         if (context.isCancelled()) {
-            MarketGuard.debug("Click cancelled for title='{}' slotId={}", screenTitle, slotId);
+            MarketGuard.debug("Click cancelled for title='{}' slotId={}", currentTitle, slotId);
             ci.cancel();
             return;
         }
 
-        ProfitTracker.onHandledScreenClick(mc, screenTitle, sh, slot, slotId, actionType);
+        ProfitTracker.onHandledScreenClick(mc, currentTitle, sh, slot, slotId, actionType);
     }
 
     @Inject(method = "removed()V", at = @At("HEAD"))
@@ -183,56 +177,26 @@ public abstract class AuctionHouseMixin {
         LowestBinData.checkBlacklistedAuctioneerAsyncIfNeeded(itemId);
     }
 
-    private static void scheduleBypass(String title, int clicks) {
-        if (clicks <= 0) return;
-        if (title == null || title.isBlank()) {
-            resetBypass();
-            return;
-        }
-
-        if (!title.equals(BYPASS_TITLE)) {
-            BYPASS_TITLE = title;
-            BYPASS_COUNTDOWN.set(0);
-        }
-
+    private static void scheduleBypass(int clicks) {
         // `clicks` includes the current blocked click.
         // Example: bypass(4) => block current + next 2, then bypass on the 4th click.
-        int countdown = Math.max(0, clicks - 1);
-        if (BYPASS_COUNTDOWN.get() <= 0) {
-            BYPASS_COUNTDOWN.set(countdown);
-            MarketGuard.debug("Scheduled bypass title='{}' clicks={} countdown={}", title, clicks, countdown);
-        }
+        if (clicks <= 0 || bypassCountdown > 0) return;
+        bypassCountdown = clicks - 1;
+        MarketGuard.debug("Scheduled bypass clicks={} countdown={}", clicks, bypassCountdown);
     }
 
     private static boolean consumeBypass() {
-        while (true) {
-            int current = BYPASS_COUNTDOWN.get();
-            if (current <= 0) return false;
-            int next = current - 1;
-            if (BYPASS_COUNTDOWN.compareAndSet(current, next)) {
-                if (BYPASS_TITLE != null) {
-                    MarketGuard.debug("Consuming bypass title='{}' current={} next={}", BYPASS_TITLE, current, next);
-                }
-                return next == 0;
-            }
-        }
-    }
-
-    private static void resetBypassIfTitleChanged(String currentTitle) {
-        String bypassTitle = BYPASS_TITLE;
-        if (bypassTitle == null) return;
-        if (currentTitle == null || !bypassTitle.equals(currentTitle)) {
-            MarketGuard.debug("Resetting bypass because title changed from '{}' to '{}'", bypassTitle, currentTitle);
-            resetBypass();
-        }
+        if (bypassCountdown <= 0) return false;
+        bypassCountdown--;
+        MarketGuard.debug("Consuming bypass remaining={}", bypassCountdown);
+        return bypassCountdown == 0;
     }
 
     private static void resetBypass() {
-        if (BYPASS_TITLE != null || BYPASS_COUNTDOWN.get() > 0) {
-            MarketGuard.debug("Resetting bypass state title='{}' countdown={}", BYPASS_TITLE, BYPASS_COUNTDOWN.get());
+        if (bypassCountdown > 0) {
+            MarketGuard.debug("Resetting bypass state countdown={}", bypassCountdown);
         }
-        BYPASS_TITLE = null;
-        BYPASS_COUNTDOWN.set(0);
+        bypassCountdown = 0;
     }
 
     private static boolean isAuctionScreen(String title) {
@@ -383,17 +347,6 @@ public abstract class AuctionHouseMixin {
                 screen.getMenu().slots.size()
         );
 
-        if (title.contains(AuctionInventory.BIN_VIEW.getTitle())) {
-            String itemId = readSlotItemId(screen, expectedItemSlot);
-            String itemName = readSlotItemName(screen, expectedItemSlot);
-            MarketGuard.debug(
-                    "BIN Auction View configured item slot={} item='{}' skyblockId='{}'",
-                    expectedItemSlot,
-                    itemName,
-                    itemId == null ? "<none>" : itemId
-            );
-        }
-
         int upperBound = Math.min(53, screen.getMenu().slots.size() - 1);
         for (int slotIndex = 0; slotIndex <= upperBound; slotIndex++) {
             String marker = slotIndex == expectedItemSlot ? " expectedItemSlot" : "";
@@ -449,10 +402,6 @@ public abstract class AuctionHouseMixin {
         }
 
         return SkyBlockItemUtil.getSkyblockId(stack);
-    }
-
-    private static boolean shouldTriggerBlacklistCheckOnOpen(String title) {
-        return title != null;
     }
 
     private static boolean isBinPurchaseFlowScreen(String title) {
