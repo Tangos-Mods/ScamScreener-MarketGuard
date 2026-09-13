@@ -7,9 +7,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,6 +90,17 @@ class MarketGuardConfigTest {
             assertTrue(field.isAnnotationPresent(MidnightConfig.Entry.class), name + " must be persisted");
             assertTrue(field.isAnnotationPresent(MidnightConfig.Hidden.class), name + " must use the custom HUD editor only");
         }
+    }
+
+    @Test
+    void emptyScreenListsStayEmptyAndUnknownScreensAreDropped() {
+        List<String> screens = new ArrayList<>();
+        assertFalse(MarketGuardConfig.normalizeScreens(screens));
+        assertTrue(screens.isEmpty());
+
+        screens = new ArrayList<>(Arrays.asList("bin_view", "unknown", null, "bin_view"));
+        assertTrue(MarketGuardConfig.normalizeScreens(screens));
+        assertEquals(List.of("bin_view"), screens);
     }
 
     @Test

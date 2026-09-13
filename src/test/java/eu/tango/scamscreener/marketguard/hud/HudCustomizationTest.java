@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -80,6 +81,28 @@ class HudCustomizationTest {
     }
 
     @Test
+    void droppingPlayerRowsKeepsTheRowsOfOtherPresets() {
+        MarketGuardConfig.setPlayerHudPreset("profile");
+        PlayerHud.setPreset("profile");
+        HudCustomization.toggleRow(HudCustomization.HudId.PLAYER, "uuid");
+        HudCustomization.toggleRow(HudCustomization.HudId.PLAYER, "museum_items");
+
+        MarketGuardConfig.setPlayerHudPreset("trade");
+        PlayerHud.setPreset("trade");
+        HudCustomization.placeRow(HudCustomization.HudId.PLAYER, "seen", true, 1);
+
+        assertEquals(List.of("name", "seen", "status", "scamscreener"), MarketGuardConfig.playerHudRows.subList(0, 4));
+        assertEquals(22, MarketGuardConfig.playerHudRows.size());
+        assertTrue(MarketGuardConfig.playerHudRows.contains("!uuid"));
+        assertTrue(MarketGuardConfig.playerHudRows.contains("!museum_items"));
+
+        MarketGuardConfig.setPlayerHudPreset("profile");
+        PlayerHud.setPreset("profile");
+        assertFalse(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("uuid"));
+        assertTrue(HudCustomization.rows(HudCustomization.HudId.PLAYER).contains("armor"));
+    }
+
+    @Test
     void editorRowsUseHudExamplesInsteadOfConfigurationLabels() {
         assertEquals("This auction: 15.0m",
                 HudCustomization.example(HudCustomization.HudId.AUCTION_PRICE, "auction").getString());
@@ -120,5 +143,21 @@ class HudCustomizationTest {
         HudCustomization.toggleScreen(HudCustomization.HudId.AUCTION_PRICE, HudScreenGroup.AUCTION_HOUSE);
 
         assertTrue(HudCustomization.visible(HudCustomization.HudId.AUCTION_PRICE, "Auction House"));
+    }
+
+    @Test
+    void screenMappingsWorkOnLocalesWithADottedCapitalI() {
+        Locale previous = Locale.getDefault();
+        Locale.setDefault(Locale.of("tr"));
+        try {
+            assertTrue(HudCustomization.visible(HudCustomization.HudId.PLAYER, "Bin Auction View"));
+
+            HudCustomization.toggleScreen(HudCustomization.HudId.PLAYER, HudScreenGroup.INGAME);
+
+            assertTrue(MarketGuardConfig.playerHudScreens.contains("ingame"));
+            assertTrue(HudCustomization.visible(HudCustomization.HudId.PLAYER, null));
+        } finally {
+            Locale.setDefault(previous);
+        }
     }
 }

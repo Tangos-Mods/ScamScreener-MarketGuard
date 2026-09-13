@@ -82,6 +82,42 @@ class PlayerHudTest {
     }
 
     @Test
+    void keepsTheStaleCacheWarningNextToTheDataSource() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        JsonObject player = new JsonObject();
+        player.addProperty("status", "ok");
+        player.addProperty("uuid", "fd9347ca546f4a4c89239665caa0385c");
+        player.addProperty("name", "Pankraz01");
+        player.addProperty("source", "mojang");
+
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, true)
+                .lines().stream().map(line -> line.getString()).toList();
+
+        assertTrue(lines.contains("Data: Mojang API (stale cache)"));
+
+        player.remove("source");
+        lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, true)
+                .lines().stream().map(line -> line.getString()).toList();
+
+        assertTrue(lines.contains("Data: stale cache"));
+    }
+
+    @Test
+    void showsFailedFinanceRefreshInsteadOfClaimingFinanceApiData() {
+        MarketGuardConfig.setPlayerHudPreset("all");
+        PlayerHud.setPreset("all");
+        JsonObject player = playerWithProfileIds();
+        PlayerHud.setFinanceLookupForTests((uuid, profileId) -> new PlayerFinanceData.LookupResult(null, false, false, true));
+
+        List<String> lines = PlayerHud.playerContent(new PlayerHud.Target("Pankraz01", null), player, false, false)
+                .lines().stream().map(line -> line.getString()).toList();
+
+        assertTrue(lines.contains("Finance data: refresh failed"));
+        assertFalse(lines.contains("Estimate basis: server-known finance values"));
+    }
+
+    @Test
     void showsActivePetWithoutInventingAnActiveWeapon() {
         JsonObject pet = new JsonObject();
         pet.addProperty("type", "ENDER_DRAGON");

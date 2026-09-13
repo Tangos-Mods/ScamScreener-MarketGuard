@@ -16,6 +16,12 @@ First stable release of the 1.5.0 line. Everything below is new since 1.4.0.
 
 ## Fixed
 
+- Level-100 pets and Common/Uncommon pets are now compared against the correct reference price; a `[Lvl 100]` pet no longer triggers a false overbidding block.
+- The Profit Tracker no longer multiplies Bazaar instant buy/sell totals by the stack size, counts partially claimed buy orders correctly, and forgets cancelled unfilled orders.
+- The Trade Guard no longer shows blacklist notices about unrelated auction sellers.
+- The Player HUD keeps its `stale cache` warning and reports failed finance requests instead of claiming finance data.
+- Update notifications only appear when the listed release is newer than the installed version.
+- HUDs stay visible on Turkish/Azeri system locales, editor row order is kept per preset, and a HUD disabled on every screen stays disabled after a restart.
 - HUD widgets no longer waste their first line on template names such as `Compact`.
 - The Player HUD encounter count uses the same clear format in-game and in the HUD editor.
 - Player HUD requests through HTTP/1.1 proxies decode chunked responses correctly.

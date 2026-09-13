@@ -7,7 +7,8 @@ import org.jetbrains.annotations.Nullable;
 @Getter @RequiredArgsConstructor
 public enum ItemTier {
     
-    COMMON("Common", 1, 0xFFFFFF),
+    COMMON("Common", 0, 0xFFFFFF),
+    UNCOMMON("Uncommon", 1, 0x55FF55),
     RARE("Rare", 2, 0x5555FF),
     EPIC("Epic", 3, 0xFF55FF),
     LEGENDARY("Legendary", 4, 0xFFAA00),

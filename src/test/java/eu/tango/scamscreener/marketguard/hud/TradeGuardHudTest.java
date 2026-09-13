@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 
 class TradeGuardHudTest {
 
@@ -142,7 +143,7 @@ class TradeGuardHudTest {
              MockedStatic<LowestBinData> auction = mockStatic(LowestBinData.class)) {
             bazaar.when(() -> BazaarData.lookupProduct("TEST"))
                     .thenReturn(new BazaarData.LookupResult(null, false, false, false));
-            auction.when(() -> LowestBinData.lookupLowestBin("TEST"))
+            auction.when(() -> LowestBinData.lookupPriceData("TEST"))
                     .thenReturn(new LowestBinData.LookupResult(
                             900.0,
                             1_000.0,
@@ -156,6 +157,7 @@ class TradeGuardHudTest {
 
             assertEquals(1_000.0, quote.value());
             assertTrue(quote.reliable());
+            auction.verify(() -> LowestBinData.lookupLowestBin("TEST"), never());
         }
     }
 

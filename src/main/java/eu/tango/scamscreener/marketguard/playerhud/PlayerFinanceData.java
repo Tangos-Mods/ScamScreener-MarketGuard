@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -27,6 +28,7 @@ public final class PlayerFinanceData {
             .build();
     private static final ConcurrentHashMap<Key, Cached> CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Key, CompletableFuture<LookupResult>> REQUESTS = new ConcurrentHashMap<>();
+    private static final Set<Key> FAILED = ConcurrentHashMap.newKeySet();
     private static volatile Function<Key, CompletableFuture<Response>> requester = PlayerFinanceData::requestFromApi;
 
     private PlayerFinanceData() {}
@@ -122,9 +124,7 @@ public final class PlayerFinanceData {
         try {
             request = requester.apply(key);
         } catch (RuntimeException error) {
-            REQUESTS.remove(key, result);
-            result.complete(cached(key, false, true));
-            return result;
+            request = CompletableFuture.failedFuture(error);
         }
         request.whenComplete((response, error) -> {
             if (error == null && !matches(key, response)) {
@@ -132,9 +132,11 @@ public final class PlayerFinanceData {
             }
             if (error == null) {
                 CACHE.put(key, new Cached(response, System.currentTimeMillis()));
+                FAILED.remove(key);
                 result.complete(cached(key, false, false));
             } else {
                 MarketGuard.debug("Player finance request failed for '{}': {}", key.playerUuid(), error.getMessage());
+                FAILED.add(key);
                 result.complete(cached(key, false, true));
             }
             REQUESTS.remove(key, result);
@@ -200,6 +202,7 @@ public final class PlayerFinanceData {
     }
 
     private static LookupResult cached(Key key, boolean loading, boolean refreshFailed) {
+        refreshFailed |= FAILED.contains(key);
         Cached cached = CACHE.get(key);
         if (cached == null) {
             return new LookupResult(null, false, loading, refreshFailed);
@@ -325,6 +328,7 @@ public final class PlayerFinanceData {
     static void resetForTests() {
         CACHE.clear();
         REQUESTS.clear();
+        FAILED.clear();
         requester = PlayerFinanceData::requestFromApi;
     }
 

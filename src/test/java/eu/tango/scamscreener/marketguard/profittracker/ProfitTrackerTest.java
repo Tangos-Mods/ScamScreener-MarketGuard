@@ -202,7 +202,101 @@ class ProfitTrackerTest {
     }
 
     @Test
-    void bazaarInstantSellAddsQuantityTimesTheShownUnitPrice(@TempDir Path tempDir) {
+    void partiallyClaimedBuyOrderDeductsItsCostOnlyOnce(@TempDir Path tempDir) {
+        ProfitTracker.setStorePathForTests(tempDir.resolve("profit_tracker.json"));
+        ProfitTracker.setStateForTests(new ProfitTrackerState());
+
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderSetup(
+                "orange",
+                "[Bazaar] Buy Order Setup! 10x Gold Ingot for 100 coins."
+        ));
+        assertTrue(ProfitTracker.tryHandleBazaarClaimedBuy(
+                "orange",
+                "Bazaar! Claimed 4x Gold Ingot worth 40 coins bought for 10 each!"
+        ));
+        assertEquals(-100.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+
+        assertTrue(ProfitTracker.tryHandleBazaarClaimedBuy(
+                "orange",
+                "Bazaar! Claimed 6x Gold Ingot worth 60 coins bought for 10 each!"
+        ));
+        assertEquals(-100.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderSetup(
+                "orange",
+                "[Bazaar] Buy Order Setup! 10x Gold Ingot for 100 coins."
+        ));
+        assertEquals(-200.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+    }
+
+    @Test
+    void cancelledUnfilledBuyOrderIsForgottenSoTheNextIdenticalOrderIsDeductedAgain(@TempDir Path tempDir) {
+        ProfitTracker.setStorePathForTests(tempDir.resolve("profit_tracker.json"));
+        ProfitTracker.setStateForTests(new ProfitTrackerState());
+
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderSetup(
+                "orange",
+                "[Bazaar] Buy Order Setup! 10x Gold Ingot for 100 coins."
+        ));
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderCancellation(
+                "orange",
+                "[Bazaar] Cancelled! Refunded 100 coins from cancelling Buy Order!"
+        ));
+        assertEquals(0.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderSetup(
+                "orange",
+                "[Bazaar] Buy Order Setup! 10x Gold Ingot for 100 coins."
+        ));
+        assertEquals(-100.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+
+        assertTrue(ProfitTracker.tryHandleBazaarClaimedBuy(
+                "orange",
+                "Bazaar! Claimed 10x Gold Ingot worth 100 coins bought for 10 each!"
+        ));
+        assertEquals(-100.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+    }
+
+    @Test
+    void claimedThenCancelledBuyOrderIsForgottenSoLaterIdenticalOrdersAreDeducted(@TempDir Path tempDir) {
+        ProfitTracker.setStorePathForTests(tempDir.resolve("profit_tracker.json"));
+        ProfitTracker.setStateForTests(new ProfitTrackerState());
+
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderSetup(
+                "orange",
+                "[Bazaar] Buy Order Setup! 10x Gold Ingot for 100 coins."
+        ));
+        assertTrue(ProfitTracker.tryHandleBazaarClaimedBuy(
+                "orange",
+                "Bazaar! Claimed 4x Gold Ingot worth 40 coins bought for 10 each!"
+        ));
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderCancellation(
+                "orange",
+                "[Bazaar] Cancelled! Refunded 60 coins from cancelling Buy Order!"
+        ));
+        assertEquals(-40.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderSetup(
+                "orange",
+                "[Bazaar] Buy Order Setup! 10x Gold Ingot for 100 coins."
+        ));
+        assertEquals(-140.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+
+        assertTrue(ProfitTracker.tryHandleBazaarClaimedBuy(
+                "orange",
+                "Bazaar! Claimed 10x Gold Ingot worth 100 coins bought for 10 each!"
+        ));
+        assertEquals(-140.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+
+        assertTrue(ProfitTracker.tryHandleBazaarBuyOrderSetup(
+                "orange",
+                "[Bazaar] Buy Order Setup! 10x Gold Ingot for 100 coins."
+        ));
+        assertEquals(-240.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+    }
+
+    @Test
+    void bazaarInstantSellCreditsTheShownTotal(@TempDir Path tempDir) {
         ProfitTracker.setStorePathForTests(tempDir.resolve("profit_tracker.json"));
         ProfitTracker.setStateForTests(new ProfitTrackerState());
         ProfitTracker.recordBazaarInstantTrade(
@@ -215,11 +309,11 @@ class ProfitTrackerTest {
                 BazaarTradeKind.INSTANT_SELL
         ));
 
-        assertEquals(1_536.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
+        assertEquals(-7_584.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
     }
 
     @Test
-    void bazaarInstantBuyDeductsQuantityTimesTheShownUnitPrice(@TempDir Path tempDir) {
+    void bazaarInstantBuyDeductsTheShownTotal(@TempDir Path tempDir) {
         ProfitTracker.setStorePathForTests(tempDir.resolve("profit_tracker.json"));
         ProfitTracker.setStateForTests(new ProfitTrackerState());
 
@@ -234,7 +328,7 @@ class ProfitTrackerTest {
                 BazaarTradeKind.INSTANT_BUY
         ));
 
-        assertEquals(-10_652.2, ProfitTracker.getBazaarAllTimeProfit("orange"));
+        assertEquals(-169.0, ProfitTracker.getBazaarAllTimeProfit("orange"));
     }
 
     @Test

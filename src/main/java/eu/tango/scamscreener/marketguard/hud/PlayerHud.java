@@ -26,13 +26,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
-import javax.net.ssl.SSLSocketFactory;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -54,6 +53,9 @@ public final class PlayerHud {
     private static final DateTimeFormatter FETCHED_AT_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final DateTimeFormatter FIRST_JOIN_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final AtomicLong REQUEST_ID = new AtomicLong();
+    private static final HttpClient CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
     private static volatile View view = View.hidden();
     private static volatile Preset preset = Preset.TRADE;
     private static volatile ErrorDetails errorDetails;
@@ -277,88 +279,25 @@ public final class PlayerHud {
     }
 
     private static PlayerResponse requestPlayerFromApi(Target target) {
-        URI endpoint = URI.create(PLAYERS_URL);
-        String scheme = endpoint.getScheme();
-        boolean secure = "https".equalsIgnoreCase(scheme);
-        if (!secure && !"http".equalsIgnoreCase(scheme)) {
-            throw new IllegalStateException("Unsupported Player API scheme: " + scheme);
-        }
-
-        String host = endpoint.getHost();
-        if (host == null || host.isBlank()) {
-            throw new IllegalStateException("Player API endpoint has no host.");
-        }
-
-        int port = endpoint.getPort() >= 0 ? endpoint.getPort() : (secure ? 443 : 80);
-        String path = endpoint.getRawPath();
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
-        if (endpoint.getRawQuery() != null && !endpoint.getRawQuery().isEmpty()) {
-            path += "?" + endpoint.getRawQuery();
-        }
-
-        byte[] body = requestBody(target).getBytes(StandardCharsets.UTF_8);
-        try (Socket socket = openSocket(host, port, secure)) {
-            socket.setSoTimeout(8_000);
-            OutputStream output = socket.getOutputStream();
-            String request = "QUERY " + path + " HTTP/1.1\r\n"
-                    + "Host: " + host + (endpoint.getPort() >= 0 ? ":" + port : "") + "\r\n"
-                    + "Content-Type: application/json\r\n"
-                    + "Content-Length: " + body.length + "\r\n"
-                    + "Accept-Encoding: identity\r\n"
-                    + "User-Agent: " + MarketGuard.userAgent() + "\r\n"
-                    + "Connection: close\r\n\r\n";
-            output.write(request.getBytes(StandardCharsets.US_ASCII));
-            output.write(body);
-            output.flush();
-
-            InputStream input = socket.getInputStream();
-            return parsePlayerResponse(new String(input.readAllBytes(), StandardCharsets.UTF_8));
-        } catch (PlayerApiUnavailableException exception) {
-            throw exception;
-        } catch (Exception exception) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(PLAYERS_URL))
+                .header("Content-Type", "application/json")
+                .header("User-Agent", MarketGuard.userAgent())
+                .timeout(Duration.ofSeconds(8))
+                .method("QUERY", HttpRequest.BodyPublishers.ofString(requestBody(target)))
+                .build();
+        HttpResponse<String> response;
+        try {
+            response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException | InterruptedException exception) {
             throw new IllegalStateException("Player API request failed", exception);
         }
+        return parsePlayerResponse(response.statusCode(), response.body());
     }
 
-    private static Socket openSocket(String host, int port, boolean secure) throws Exception {
-        Socket socket = new Socket();
-        socket.connect(new InetSocketAddress(host, port), 5_000);
-        if (!secure) {
-            return socket;
-        }
-        return ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(socket, host, port, true);
-    }
-
-    static PlayerResponse parsePlayerResponse(String response) {
-        int headerEnd = response.indexOf("\r\n\r\n");
-        if (headerEnd < 0) {
-            throw new PlayerApiUnavailableException("Player API response was malformed.");
-        }
-
-        int statusEnd = response.indexOf("\r\n");
-        if (statusEnd < 0) {
-            throw new PlayerApiUnavailableException("Player API response had no status line.");
-        }
-        String[] statusLine = response.substring(0, statusEnd).split(" ", 3);
-        if (statusLine.length < 2) {
-            throw new PlayerApiUnavailableException("Player API response had no status.");
-        }
-        int statusCode;
-        try {
-            statusCode = Integer.parseInt(statusLine[1]);
-        } catch (NumberFormatException exception) {
-            throw new PlayerApiUnavailableException("Player API response had an invalid status.", exception);
-        }
+    static PlayerResponse parsePlayerResponse(int statusCode, String body) {
         if (statusCode < 200 || statusCode >= 300) {
             throw new PlayerApiUnavailableException("Player API request failed with status " + statusCode, statusCode);
-        }
-
-        String headers = response.substring(0, headerEnd);
-        String body = response.substring(headerEnd + 4);
-        if (headers.toLowerCase(Locale.ROOT).contains("\r\ntransfer-encoding: chunked")) {
-            body = decodeChunkedBody(body);
         }
 
         JsonObject root;
@@ -389,39 +328,6 @@ public final class PlayerHud {
         }
         String status = text(root, "status", "ok");
         return new PlayerResponse(player, "stale".equals(status));
-    }
-
-    private static String decodeChunkedBody(String body) {
-        StringBuilder decoded = new StringBuilder();
-        int offset = 0;
-        while (offset < body.length()) {
-            int lineEnd = body.indexOf("\r\n", offset);
-            if (lineEnd < 0) {
-                throw new PlayerApiUnavailableException("Player API chunked response was malformed.");
-            }
-            String sizeLine = body.substring(offset, lineEnd);
-            int extension = sizeLine.indexOf(';');
-            if (extension >= 0) {
-                sizeLine = sizeLine.substring(0, extension);
-            }
-            final int size;
-            try {
-                size = Integer.parseInt(sizeLine.trim(), 16);
-            } catch (NumberFormatException exception) {
-                throw new PlayerApiUnavailableException("Player API chunked response had an invalid chunk size.", exception);
-            }
-            offset = lineEnd + 2;
-            if (size == 0) {
-                return decoded.toString();
-            }
-            if (size < 0 || offset + size > body.length() || offset + size + 2 > body.length()
-                    || !body.startsWith("\r\n", offset + size)) {
-                throw new PlayerApiUnavailableException("Player API chunked response was malformed.");
-            }
-            decoded.append(body, offset, offset + size);
-            offset += size + 2;
-        }
-        throw new PlayerApiUnavailableException("Player API chunked response was malformed.");
     }
 
     public static final class Widgets {
@@ -882,12 +788,12 @@ public final class PlayerHud {
         lines.put("scamscreener", Component.translatable(
                 blacklisted ? "marketguard.hud.scamscreener.match" : "marketguard.hud.scamscreener.no_entry"
         ).withStyle(blacklisted ? ChatFormatting.RED : ChatFormatting.GRAY));
+        String data = dataQuality(player);
         if (stale) {
-            lines.put("data", Component.literal("Data: stale cache").withStyle(ChatFormatting.YELLOW));
+            data = data == null ? "stale cache" : data + " (stale cache)";
         }
-        String quality = dataQuality(player);
-        if (quality != null) {
-            lines.put("data", Component.literal("Data: " + quality).withStyle(ChatFormatting.DARK_GRAY));
+        if (data != null) {
+            lines.put("data", Component.literal("Data: " + data).withStyle(stale ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
         }
         String unavailable = unavailableFields(player);
         if (unavailable != null) {

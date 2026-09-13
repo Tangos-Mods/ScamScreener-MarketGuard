@@ -43,7 +43,7 @@ public final class HudCustomization {
     public static boolean visible(HudId hud, String title) {
         Set<HudScreenGroup> current = HudScreenGroup.classify(title);
         for (HudScreenGroup group : current) {
-            if (screens(hud).contains(group.name().toLowerCase())) {
+            if (screens(hud).contains(group.key())) {
                 return true;
             }
         }
@@ -80,7 +80,7 @@ public final class HudCustomization {
     }
 
     static boolean screenEnabled(HudId hud, HudScreenGroup group) {
-        return screens(hud).contains(group.name().toLowerCase());
+        return screens(hud).contains(group.key());
     }
 
     static List<String> editableRows(HudId hud, boolean enabled) {
@@ -93,7 +93,7 @@ public final class HudCustomization {
 
     public static void toggleScreen(HudId hud, HudScreenGroup group) {
         List<String> values = screens(hud);
-        String key = group.name().toLowerCase();
+        String key = group.key();
         if (!values.remove(key)) {
             values.add(key);
         }
@@ -155,9 +155,14 @@ public final class HudCustomization {
         destination.add(Math.max(0, Math.min(target, destination.size())), row);
 
         List<String> values = rowValues(hud);
+        List<String> available = availableRows(hud);
+        List<String> otherRows = values.stream()
+                .filter(value -> !available.contains(value.startsWith("!") ? value.substring(1) : value))
+                .toList();
         values.clear();
         values.addAll(visibleRows);
         hiddenRows.forEach(hidden -> values.add("!" + hidden));
+        values.addAll(otherRows);
         MarketGuardConfig.save();
     }
 

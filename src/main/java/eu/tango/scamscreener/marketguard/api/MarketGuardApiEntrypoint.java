@@ -43,7 +43,7 @@ public final class MarketGuardApiEntrypoint implements MarketGuardApi {
 
     @Override
     public CachedValue<Double> lookupCachedLowestBin(String itemId) {
-        LowestBinData.LookupResult result = LowestBinData.lookupLowestBin(itemId);
+        LowestBinData.LookupResult result = LowestBinData.lookupPriceData(itemId);
         return new CachedValue<>(result.value(), result.stale(), result.loading(), result.refreshFailed());
     }
 

@@ -8,10 +8,25 @@ First stable release of the 1.5.0 line; see the beta sections below for everythi
 - Expose a `marketguard-api` Fabric entrypoint. `MarketGuardApi` is now an interface implemented by `MarketGuardApiEntrypoint`, so other mods can discover it with `FabricLoader.getEntrypoints` and share MarketGuard's Lowest BIN, Bazaar, and Player API requests instead of sending their own.
 - Add `MarketGuardSettingsApi` so companion mods such as PackCore can read and toggle update notifications during modpack setup.
 
+## Fixed
+
+- Price level-100 pets against their own `TYPE;TIER+100` reference and use the API's 0-based pet tiers (`COMMON` was mapped to the `UNCOMMON` key, `UNCOMMON` had no key at all).
+- Stop multiplying Bazaar instant buy/sell chat totals by the quantity again in the Profit Tracker.
+- Keep a partially claimed Bazaar buy order pending until it is fully claimed, and drop a cancelled unfilled order instead of letting it suppress the cost of the next identical order.
+- Use the non-notifying Lowest BIN lookup in the Trade Guard and in `MarketGuardApi.lookupCachedLowestBin`, so unrelated auctioneers no longer trigger blacklist chat notices.
+- Send Player API requests through `HttpClient` (hostname verification, chunked decoding) instead of a hand-rolled TLS socket.
+- Keep the `stale cache` warning in the Player HUD `data` row next to the source line, and surface failed finance requests as `Finance data: refresh failed`.
+- Only announce a Modrinth update when the listed release is actually newer than the installed version.
+- Use `Locale.ROOT` for HUD screen keys so HUDs stay visible on Turkish/Azeri system locales.
+- Keep Player HUD rows of other presets when reordering rows in the editor.
+- Preserve an empty HUD screen list (HUD disabled everywhere) across restarts instead of restoring the defaults.
+
 ## Changed
 
 - Publish as a stable release instead of a beta.
 - Replace the static `MarketGuardApi.lookupCached...`/`request...` methods with the entrypoint instance methods of the same name.
+- `MarketGuardConfig.save()` and `ProfitTrackerHud.setDisplayEnabled()` are `void`; MidnightLib never reports write failures, so the unreachable rollback branches were removed.
+- Add `HudScreenGroup.key()` for the config key of a screen group.
 
 ## 1.5.0-beta.3
 

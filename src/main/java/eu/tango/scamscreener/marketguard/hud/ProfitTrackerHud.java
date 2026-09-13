@@ -51,20 +51,15 @@ public final class ProfitTrackerHud {
         return MarketGuardConfig.isProfitTrackerHudEnabled();
     }
 
-    public static boolean setDisplayEnabled(boolean enabled) {
-        boolean previousEnabled = MarketGuardConfig.isProfitTrackerHudEnabled();
+    public static void setDisplayEnabled(boolean enabled) {
         MarketGuardConfig.setProfitTrackerHudEnabled(enabled);
-        if (MarketGuardConfig.save()) {
-            return true;
-        }
-
-        MarketGuardConfig.setProfitTrackerHudEnabled(previousEnabled);
-        return false;
+        MarketGuardConfig.save();
     }
 
     private static void toggleFromKey(Minecraft client) {
         boolean nextEnabled = !isDisplayEnabled();
-        if (!setDisplayEnabled(nextEnabled) || client.player == null) {
+        setDisplayEnabled(nextEnabled);
+        if (client.player == null) {
             return;
         }
 

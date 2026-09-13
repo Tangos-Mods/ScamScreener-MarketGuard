@@ -27,6 +27,7 @@ public final class MarketGuardConfig extends MidnightConfig {
     private static final String HUD = "hud";
     private static final String TRACKER = "tracker";
     private static final String GENERAL = "general";
+    private static final List<String> SCREEN_KEYS = List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge");
 
     @Entry(category = PROTECTION, min = 0, max = 100, isSlider = true)
     public static int underbiddingThreshold = AuctionUnderbidding.DEFAULT_THRESHOLD;
@@ -101,17 +102,9 @@ public final class MarketGuardConfig extends MidnightConfig {
         }
     }
 
-    public static boolean save() {
-        if (!MidnightConfig.configInstances.containsKey(MarketGuard.MOD_ID)) {
-            return false;
-        }
-
-        try {
+    public static void save() {
+        if (MidnightConfig.configInstances.containsKey(MarketGuard.MOD_ID)) {
             MidnightConfig.write(MarketGuard.MOD_ID);
-            return true;
-        } catch (RuntimeException exception) {
-            MarketGuard.LOGGER.warn("Failed to save MarketGuard config", exception);
-            return false;
         }
     }
 
@@ -266,24 +259,24 @@ public final class MarketGuardConfig extends MidnightConfig {
             playerHudPreset = PlayerHudPreset.trade;
             changed = true;
         }
-        if (auctionPriceHudScreens == null) { auctionPriceHudScreens = new ArrayList<>(); changed = true; }
-        if (playerHudScreens == null) { playerHudScreens = new ArrayList<>(); changed = true; }
-        if (tradeGuardHudScreens == null) { tradeGuardHudScreens = new ArrayList<>(); changed = true; }
-        if (minionProfitHudScreens == null) { minionProfitHudScreens = new ArrayList<>(); changed = true; }
-        if (forgeProfitHudScreens == null) { forgeProfitHudScreens = new ArrayList<>(); changed = true; }
-        if (profitTrackerHudScreens == null) { profitTrackerHudScreens = new ArrayList<>(); changed = true; }
+        if (auctionPriceHudScreens == null) { auctionPriceHudScreens = new ArrayList<>(List.of("bin_view")); changed = true; }
+        if (playerHudScreens == null) { playerHudScreens = new ArrayList<>(List.of("trade", "profile", "bin_view")); changed = true; }
+        if (tradeGuardHudScreens == null) { tradeGuardHudScreens = new ArrayList<>(List.of("trade")); changed = true; }
+        if (minionProfitHudScreens == null) { minionProfitHudScreens = new ArrayList<>(List.of("minion")); changed = true; }
+        if (forgeProfitHudScreens == null) { forgeProfitHudScreens = new ArrayList<>(List.of("forge")); changed = true; }
+        if (profitTrackerHudScreens == null) { profitTrackerHudScreens = new ArrayList<>(List.of("ingame")); changed = true; }
         if (auctionPriceHudRows == null) { auctionPriceHudRows = new ArrayList<>(); changed = true; }
         if (playerHudRows == null) { playerHudRows = new ArrayList<>(); changed = true; }
         if (tradeGuardHudRows == null) { tradeGuardHudRows = new ArrayList<>(); changed = true; }
         if (minionProfitHudRows == null) { minionProfitHudRows = new ArrayList<>(); changed = true; }
         if (forgeProfitHudRows == null) { forgeProfitHudRows = new ArrayList<>(); changed = true; }
         if (profitTrackerHudRows == null) { profitTrackerHudRows = new ArrayList<>(); changed = true; }
-        changed |= normalizeList(auctionPriceHudScreens, List.of("bin_view"), List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge"));
-        changed |= normalizeList(playerHudScreens, List.of("trade", "profile", "bin_view"), List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge"));
-        changed |= normalizeList(tradeGuardHudScreens, List.of("trade"), List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge"));
-        changed |= normalizeList(minionProfitHudScreens, List.of("minion"), List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge"));
-        changed |= normalizeList(forgeProfitHudScreens, List.of("forge"), List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge"));
-        changed |= normalizeList(profitTrackerHudScreens, List.of("ingame"), List.of("ingame", "auction_house", "bin_view", "trade", "profile", "minion", "forge"));
+        changed |= normalizeScreens(auctionPriceHudScreens);
+        changed |= normalizeScreens(playerHudScreens);
+        changed |= normalizeScreens(tradeGuardHudScreens);
+        changed |= normalizeScreens(minionProfitHudScreens);
+        changed |= normalizeScreens(forgeProfitHudScreens);
+        changed |= normalizeScreens(profitTrackerHudScreens);
         changed |= normalizeRows(auctionPriceHudRows, List.of("item", "auction", "lowest_bin", "difference", "advice", "volatility", "liquidity", "stale"));
         changed |= normalizeRows(playerHudRows, List.of(
                 "name", "status", "seen", "first_join", "profile", "wealth",
@@ -298,19 +291,14 @@ public final class MarketGuardConfig extends MidnightConfig {
         return changed;
     }
 
-    private static boolean normalizeList(List<String> values, List<String> defaults, List<String> allowed) {
-        List<String> normalized = values == null ? new ArrayList<>() : values.stream()
-                .filter(value -> value != null && allowed.contains(value))
+    static boolean normalizeScreens(List<String> values) {
+        List<String> normalized = values.stream()
+                .filter(value -> value != null && SCREEN_KEYS.contains(value))
                 .distinct()
                 .toList();
-        if (normalized.isEmpty()) {
-            normalized = new ArrayList<>(defaults);
-        }
-        if (values == null || !values.equals(normalized)) {
-            if (values != null) {
-                values.clear();
-                values.addAll(normalized);
-            }
+        if (!values.equals(normalized)) {
+            values.clear();
+            values.addAll(normalized);
             return true;
         }
         return false;

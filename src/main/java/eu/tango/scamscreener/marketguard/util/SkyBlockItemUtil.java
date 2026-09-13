@@ -22,6 +22,7 @@ public class SkyBlockItemUtil {
             Pattern.CASE_INSENSITIVE
     );
     private static final String AUCTION_FOR_ITEM_PLACEHOLDER = "AUCTION FOR ITEM:";
+    private static final String LEVEL_100_PET_PREFIX = "[Lvl 100] ";
 
     @Nullable
     public static String getSkyblockId(ItemStack itemStack) {
@@ -30,18 +31,19 @@ public class SkyBlockItemUtil {
         CustomData customData = itemStack.get(DataComponents.CUSTOM_DATA);
         if (customData == null) return null;
 
-        CompoundTag nbt = customData.copyTag();
+        return getSkyblockId(customData.copyTag(), getDisplayName(itemStack));
+    }
 
+    @Nullable
+    static String getSkyblockId(CompoundTag nbt, @Nullable String displayName) {
         String id = getSkyblockIdFromCompound(nbt.getCompound("minecraft:custom_data").orElse(null));
-        if (isSkyBlockId(id)) return id;
+        if (!isSkyBlockId(id)) id = getSkyblockIdFromCompound(nbt.getCompound("ExtraAttributes").orElse(null));
+        if (!isSkyBlockId(id)) id = getSkyblockIdFromCompound(nbt);
+        if (!isSkyBlockId(id)) return null;
 
-        id = getSkyblockIdFromCompound(nbt.getCompound("ExtraAttributes").orElse(null));
-        if (isSkyBlockId(id)) return id;
-
-        id = getSkyblockIdFromCompound(nbt);
-        if (isSkyBlockId(id)) return id;
-
-        return null;
+        // The API keys max-level pets separately, e.g. BEE;4+100
+        if (displayName != null && displayName.startsWith(LEVEL_100_PET_PREFIX)) return id + "+100";
+        return id;
     }
 
     public static double getPriceFromNBT(ItemStack item) throws Exception {

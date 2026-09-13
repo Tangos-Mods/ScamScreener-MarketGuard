@@ -4,8 +4,10 @@ import com.google.gson.JsonObject;
 import eu.tango.scamscreener.marketguard.MarketGuardConfig;
 import eu.tango.scamscreener.marketguard.api.MarketGuardApi;
 import eu.tango.scamscreener.marketguard.api.MarketGuardApiEntrypoint;
+import eu.tango.scamscreener.marketguard.compat.ScamScreenerBlacklistCompat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -13,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mockStatic;
 
 class MarketGuardApiTest {
     private final MarketGuardApi api = new MarketGuardApiEntrypoint();
@@ -74,6 +77,23 @@ class MarketGuardApiTest {
         assertTrue(result.stale());
         assertTrue(result.loading());
         assertTrue(result.refreshFailed());
+    }
+
+    @Test
+    void cachedLowestBinLookupDoesNotNotifyAboutTheAuctioneer() {
+        JsonObject snapshot = new JsonObject();
+        JsonObject product = new JsonObject();
+        product.addProperty("price", 123.0);
+        product.addProperty("auctioneerUuid", "57ad19ca639f412daee5765f87874e35");
+        snapshot.add("FANCY_LEGGINGS", product);
+        LowestBinData.cache().setSnapshotForTests(snapshot, System.currentTimeMillis() + 60_000L);
+
+        try (MockedStatic<ScamScreenerBlacklistCompat> blacklist = mockStatic(ScamScreenerBlacklistCompat.class)) {
+            MarketGuardApi.CachedValue<Double> result = api.lookupCachedLowestBin("FANCY_LEGGINGS");
+
+            assertEquals(123.0, result.value());
+            blacklist.verifyNoInteractions();
+        }
     }
 
     @Test

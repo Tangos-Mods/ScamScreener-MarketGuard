@@ -184,7 +184,7 @@ public final class TradeGuardHud {
             );
         }
 
-        LowestBinData.LookupResult auction = LowestBinData.lookupLowestBin(itemId);
+        LowestBinData.LookupResult auction = LowestBinData.lookupPriceData(itemId);
         Optional<AuctionReferencePrice> reference = AuctionReferencePrice.select(
                 auction.value(),
                 auction.average7d(),

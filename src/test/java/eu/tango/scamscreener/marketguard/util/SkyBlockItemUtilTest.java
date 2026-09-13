@@ -24,6 +24,23 @@ class SkyBlockItemUtilTest {
     }
 
     @Test
+    void getSkyblockIdFromCompoundUsesZeroBasedPetTier() throws Exception {
+        assertEquals("ENDERMAN;0", getSkyblockIdFromCompound(petExtraAttributes("ENDERMAN", "COMMON")));
+        assertEquals("ENDERMAN;1", getSkyblockIdFromCompound(petExtraAttributes("ENDERMAN", "UNCOMMON")));
+        assertEquals("ENDERMAN;4", getSkyblockIdFromCompound(petExtraAttributes("ENDERMAN", "LEGENDARY")));
+    }
+
+    @Test
+    void getSkyblockIdAppendsLevel100SuffixForMaxLevelPets() {
+        CompoundTag nbt = new CompoundTag();
+        nbt.put("ExtraAttributes", petExtraAttributes("BEE", "LEGENDARY"));
+
+        assertEquals("BEE;4+100", SkyBlockItemUtil.getSkyblockId(nbt, "[Lvl 100] Bee"));
+        assertEquals("BEE;4", SkyBlockItemUtil.getSkyblockId(nbt, "[Lvl 1] Bee"));
+        assertEquals("BEE;4", SkyBlockItemUtil.getSkyblockId(nbt, null));
+    }
+
+    @Test
     void getDisplayNameUsesThirdTooltipLineForAuctionPlaceholder() {
         assertEquals(
                 "Egg Pile",
@@ -43,6 +60,17 @@ class SkyBlockItemUtilTest {
     @Test
     void parsesBuyItNowPriceFromBinAuctionLore() {
         assertEquals(4_242_911_000D, SkyBlockItemUtil.parsePrice("Buy it now: 4,242,911,000 coins"));
+    }
+
+    private static CompoundTag petExtraAttributes(String type, String tier) {
+        CompoundTag petInfo = new CompoundTag();
+        petInfo.putString("type", type);
+        petInfo.putString("tier", tier);
+
+        CompoundTag extraAttributes = new CompoundTag();
+        extraAttributes.putString("id", "PET");
+        extraAttributes.put("petInfo", petInfo);
+        return extraAttributes;
     }
 
     private static String getSkyblockIdFromCompound(CompoundTag compound) throws Exception {

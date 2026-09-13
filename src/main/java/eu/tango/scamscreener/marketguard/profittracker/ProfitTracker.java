@@ -538,7 +538,7 @@ public final class ProfitTracker {
 
         int quantity = parseInt(matcher.group(1));
         String itemName = matcher.group(2).trim();
-        double totalCoins = quantity * parsePrice(matcher.group(3));
+        double totalCoins = parsePrice(matcher.group(3));
         synchronized (LOCK) {
             BazaarClickCandidate candidate = getPendingBazaarCandidate(profileId);
             String itemId = candidate != null && candidate.kind == kind && candidate.matches(itemName)
@@ -568,9 +568,13 @@ public final class ProfitTracker {
             PendingBazaarOrder order = findPendingBazaarOrder(profile.pendingBazaarOrders, BazaarTradeKind.BUY_ORDER, itemId, itemName);
             boolean purchaseCostRecorded = false;
             if (order != null) {
-                profile.pendingBazaarOrders.remove(order);
                 itemId = order.itemId;
                 purchaseCostRecorded = order.purchaseCostRecorded;
+                order.quantity -= quantity;
+                order.quotedTotalCoins -= totalCoins;
+                if (order.quantity <= 0 || order.refundRecorded) {
+                    profile.pendingBazaarOrders.remove(order);
+                }
             }
             if (!purchaseCostRecorded) {
                 recordBazaarTrade(profile, BazaarTradeKind.BUY_ORDER, itemId, itemName, quantity, totalCoins);
@@ -660,7 +664,11 @@ public final class ProfitTracker {
 
             profile.bazaarAllTimeProfit += refundedCoins;
             if (order != null) {
-                order.refundRecorded = true;
+                if (order.quotedTotalCoins - refundedCoins < 0.005) {
+                    profile.pendingBazaarOrders.remove(order);
+                } else {
+                    order.refundRecorded = true;
+                }
             }
             saveState();
         }

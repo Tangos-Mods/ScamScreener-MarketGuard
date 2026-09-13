@@ -75,7 +75,7 @@ public final class HudEditorScreen extends Screen {
                     .withValues(List.of("trade", "compact", "profile", "all"))
                     .create(width / 2 - 155, baseRowsTop - 34, 310, 20,
                             Component.translatable("marketguard.hud.player_preset"),
-                            (button, value) -> setPlayerPreset(button, value)));
+                            (button, value) -> setPlayerPreset(value)));
         }
 
         rowsTop = baseRowsTop + (hud == HudCustomization.HudId.PLAYER ? 28 : 0);
@@ -138,7 +138,7 @@ public final class HudEditorScreen extends Screen {
     }
 
     private Component screenLabel(HudScreenGroup group) {
-        Component screen = Component.translatable("marketguard.hud.screen." + group.name().toLowerCase());
+        Component screen = Component.translatable("marketguard.hud.screen." + group.key());
         boolean enabled = HudCustomization.screenEnabled(hud, group);
         return Component.literal(enabled ? "✓ " : "✗ ")
                 .withStyle(enabled ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.RED)
@@ -149,15 +149,10 @@ public final class HudEditorScreen extends Screen {
         return Component.translatable("marketguard.midnightconfig.enum.PlayerHudPreset." + preset);
     }
 
-    private void setPlayerPreset(CycleButton<String> button, String preset) {
-        String previous = MarketGuardConfig.getPlayerHudPreset();
+    private void setPlayerPreset(String preset) {
         MarketGuardConfig.setPlayerHudPreset(preset);
         PlayerHud.setPreset(preset);
-        if (!MarketGuardConfig.save()) {
-            MarketGuardConfig.setPlayerHudPreset(previous);
-            PlayerHud.setPreset(previous);
-            button.setValue(previous);
-        }
+        MarketGuardConfig.save();
     }
 
     private Button resetButton(int x, int buttonWidth) {

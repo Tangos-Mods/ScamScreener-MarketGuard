@@ -124,7 +124,7 @@ public final class ModrinthUpdateChecker {
         }
 
         String latestVersionNumber = normalizeVersion(latestVersion.versionNumber);
-        if (latestVersionNumber.isBlank() || latestVersionNumber.equals(normalizeVersion(currentVersion))) {
+        if (latestVersionNumber.isBlank() || !isNewer(latestVersionNumber, normalizeVersion(currentVersion))) {
             return null;
         }
 
@@ -197,6 +197,28 @@ public final class ModrinthUpdateChecker {
         }
 
         return normalized;
+    }
+
+    private static boolean isNewer(String candidate, String current) {
+        int[] candidateNumbers = numericPrefix(candidate);
+        int[] currentNumbers = numericPrefix(current);
+        int length = Math.max(candidateNumbers.length, currentNumbers.length);
+        for (int i = 0; i < length; i++) {
+            int candidateNumber = i < candidateNumbers.length ? candidateNumbers[i] : 0;
+            int currentNumber = i < currentNumbers.length ? currentNumbers[i] : 0;
+            if (candidateNumber != currentNumber) {
+                return candidateNumber > currentNumber;
+            }
+        }
+        return current.contains("-") && !candidate.contains("-");
+    }
+
+    private static int[] numericPrefix(String version) {
+        return Arrays.stream(version.split("-", 2)[0].split("\\."))
+                .map(part -> part.replaceAll("\\D.*", ""))
+                .takeWhile(part -> !part.isEmpty())
+                .mapToInt(Integer::parseInt)
+                .toArray();
     }
 
     private static final class ModrinthVersion {

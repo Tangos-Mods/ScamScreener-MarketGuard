@@ -160,7 +160,7 @@ public class MessageBuilder {
 
         String[] splitItemId = itemId.split(";", 2);
         try {
-            ItemTier tier = ItemTier.fromId(Integer.parseInt(splitItemId[1]));
+            ItemTier tier = ItemTier.fromId(Integer.parseInt(splitItemId[1].split("\\+", 2)[0]));
             if (tier != null) {
                 return tier.getColor();
             }

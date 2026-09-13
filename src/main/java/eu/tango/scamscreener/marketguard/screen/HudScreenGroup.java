@@ -5,6 +5,7 @@ import eu.tango.scamscreener.marketguard.hud.ForgeProfitHud;
 import eu.tango.scamscreener.marketguard.hud.MinionProfitHud;
 
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Set;
 
 public enum HudScreenGroup {
@@ -15,6 +16,10 @@ public enum HudScreenGroup {
     PROFILE,
     MINION,
     FORGE;
+
+    public String key() {
+        return name().toLowerCase(Locale.ROOT);
+    }
 
     public static Set<HudScreenGroup> classify(String title) {
         if (title == null || title.isBlank()) {

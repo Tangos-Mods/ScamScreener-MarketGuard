@@ -106,9 +106,17 @@ class PlayerHudApiTest {
     }
 
     @Test
+    void rejectsNonSuccessfulStatusCodesWithTheTypedError() {
+        PlayerApiUnavailableException error = assertThrows(PlayerApiUnavailableException.class,
+                () -> PlayerHud.parsePlayerResponse(503, "{\"status\":\"ok\",\"players\":[{\"status\":\"ok\",\"name\":\"Pankraz01\"}]}"));
+
+        assertEquals(503, error.statusCode());
+    }
+
+    @Test
     void rejectsSuccessfulResponsesWithoutAUsablePlayerResult() {
         PlayerApiUnavailableException error = assertThrows(PlayerApiUnavailableException.class,
-                () -> PlayerHud.parsePlayerResponse("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\",\"players\":[{}]}"));
+                () -> PlayerHud.parsePlayerResponse(200, "{\"status\":\"ok\",\"players\":[{}]}"));
 
         assertEquals("Player API result contained no usable status.", error.getMessage());
     }
@@ -116,7 +124,7 @@ class PlayerHudApiTest {
     @Test
     void rejectsUnavailableResultsWithoutAnyPlayerData() {
         PlayerApiUnavailableException error = assertThrows(PlayerApiUnavailableException.class,
-                () -> PlayerHud.parsePlayerResponse("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\",\"players\":[{\"status\":\"unavailable\"}]}"));
+                () -> PlayerHud.parsePlayerResponse(200, "{\"status\":\"ok\",\"players\":[{\"status\":\"unavailable\"}]}"));
 
         assertEquals("Player API result contained no usable player data.", error.getMessage());
     }
@@ -124,20 +132,21 @@ class PlayerHudApiTest {
     @Test
     void keepsUnavailableResultsWhenTheyStillContainPlayerData() {
         PlayerHud.PlayerResponse response = PlayerHud.parsePlayerResponse(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\",\"players\":[{\"status\":\"unavailable\",\"name\":\"Pankraz01\"}]}"
+                200,
+                "{\"status\":\"ok\",\"players\":[{\"status\":\"unavailable\",\"name\":\"Pankraz01\"}]}"
         );
 
         assertEquals("Pankraz01", response.player().get("name").getAsString());
     }
 
     @Test
-    void decodesChunkedPlayerResponses() {
+    void flagsStaleApiResponses() {
         PlayerHud.PlayerResponse response = PlayerHud.parsePlayerResponse(
-                "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
-                        + "40\r\n{\"status\":\"ok\",\"players\":[{\"status\":\"partial\",\"name\":\"Pan_05\"}]}\r\n0\r\n\r\n"
+                200,
+                "{\"status\":\"stale\",\"players\":[{\"status\":\"ok\",\"name\":\"Pankraz01\"}]}"
         );
 
-        assertEquals("Pan_05", response.player().get("name").getAsString());
+        assertTrue(response.stale());
     }
 
     private static JsonObject player(String name) {

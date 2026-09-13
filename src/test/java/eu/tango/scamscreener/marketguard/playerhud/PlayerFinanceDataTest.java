@@ -86,6 +86,50 @@ class PlayerFinanceDataTest {
         assertFalse(first.join().stale());
     }
 
+    @Test
+    void remembersFailedRequestsUntilTheNextSuccessfulOne() {
+        PlayerFinanceData.setRequesterForTests(key -> CompletableFuture.failedFuture(new IllegalStateException("offline")));
+
+        PlayerFinanceData.LookupResult failed = PlayerFinanceData.request(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ).join();
+        PlayerFinanceData.LookupResult lookup = PlayerFinanceData.lookupCached(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        );
+
+        assertFalse(failed.hasValue());
+        assertTrue(failed.refreshFailed());
+        assertFalse(lookup.hasValue());
+        assertFalse(lookup.loading());
+        assertTrue(lookup.refreshFailed());
+
+        PlayerFinanceData.setRequesterForTests(key -> CompletableFuture.completedFuture(response("ok", List.of())));
+        PlayerFinanceData.request("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb").join();
+        lookup = PlayerFinanceData.lookupCached(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        );
+
+        assertTrue(lookup.hasValue());
+        assertFalse(lookup.refreshFailed());
+    }
+
+    @Test
+    void remembersRequestsThatFailBeforeBeingSent() {
+        PlayerFinanceData.setRequesterForTests(key -> {
+            throw new IllegalStateException("offline");
+        });
+
+        PlayerFinanceData.request("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb").join();
+
+        assertTrue(PlayerFinanceData.lookupCached(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ).refreshFailed());
+    }
+
     private static PlayerFinanceData.Response response(String status, List<String> unavailableFields) {
         return new PlayerFinanceData.Response(
                 status,

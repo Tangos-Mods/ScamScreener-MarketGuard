@@ -112,13 +112,8 @@ public final class MarketGuardCommand {
     }
 
     private static int setUnderbidding(CommandContext<FabricClientCommandSource> context, int value) {
-        int previousThreshold = AuctionUnderbidding.getThreshold();
         AuctionUnderbidding.setThreshold(value);
-        if (!MarketGuardConfig.save()) {
-            AuctionUnderbidding.setThreshold(previousThreshold);
-            context.getSource().sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
+        MarketGuardConfig.save();
 
         if (value == 0 || value == 100) {
             context.getSource().sendFeedback(message(Component.literal("Underbidding protection disabled.").withStyle(ChatFormatting.YELLOW)));
@@ -132,13 +127,8 @@ public final class MarketGuardCommand {
     }
 
     private static int setOverbidding(CommandContext<FabricClientCommandSource> context, int value) {
-        int previousThreshold = AuctionOverbidding.getThreshold();
         AuctionOverbidding.setThreshold(value);
-        if (!MarketGuardConfig.save()) {
-            AuctionOverbidding.setThreshold(previousThreshold);
-            context.getSource().sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
+        MarketGuardConfig.save();
 
         if (value == 100) {
             context.getSource().sendFeedback(message(Component.literal("Overbidding protection disabled.").withStyle(ChatFormatting.YELLOW)));
@@ -162,20 +152,10 @@ public final class MarketGuardCommand {
     }
 
     private static int reset(FabricClientCommandSource source) {
-        int previousUnderbiddingThreshold = AuctionUnderbidding.getThreshold();
-        int previousOverbiddingThreshold = AuctionOverbidding.getThreshold();
-        long previousAbsoluteThreshold = MarketGuardConfig.getAbsoluteThreshold();
-
         AuctionUnderbidding.setThreshold(AuctionUnderbidding.DEFAULT_THRESHOLD);
         AuctionOverbidding.setThreshold(AuctionOverbidding.DEFAULT_THRESHOLD);
         MarketGuardConfig.setAbsoluteThreshold(MarketGuardConfig.DEFAULT_ABSOLUTE_THRESHOLD);
-        if (!MarketGuardConfig.save()) {
-            AuctionUnderbidding.setThreshold(previousUnderbiddingThreshold);
-            AuctionOverbidding.setThreshold(previousOverbiddingThreshold);
-            MarketGuardConfig.setAbsoluteThreshold(previousAbsoluteThreshold);
-            source.sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
+        MarketGuardConfig.save();
 
         source.sendFeedback(message(Component.literal(
                 "Thresholds reset to defaults. Underbidding: "
@@ -193,14 +173,9 @@ public final class MarketGuardCommand {
     }
 
     private static int toggleDebug(FabricClientCommandSource source) {
-        boolean previousDebugEnabled = MarketGuardConfig.isDebugEnabled();
-        boolean nextDebugEnabled = !previousDebugEnabled;
+        boolean nextDebugEnabled = !MarketGuardConfig.isDebugEnabled();
         MarketGuardConfig.setDebugEnabled(nextDebugEnabled);
-        if (!MarketGuardConfig.save()) {
-            MarketGuardConfig.setDebugEnabled(previousDebugEnabled);
-            source.sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
+        MarketGuardConfig.save();
 
         source.sendFeedback(message(Component.literal(
                 "Debug logging " + (nextDebugEnabled ? "enabled" : "disabled") + "."
@@ -211,11 +186,7 @@ public final class MarketGuardCommand {
     private static int toggleNumberFormat(FabricClientCommandSource source) {
         boolean nextShortFormat = !MarketGuardConfig.isShortNumberFormat();
         MarketGuardConfig.setShortNumberFormat(nextShortFormat);
-        if (!MarketGuardConfig.save()) {
-            MarketGuardConfig.setShortNumberFormat(!nextShortFormat);
-            source.sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
+        MarketGuardConfig.save();
 
         source.sendFeedback(message(Component.literal(
                 "HUD number format set to " + (nextShortFormat ? "short (1k, 1M, 1B)." : "full (1,000, 1,000,000).")
@@ -224,13 +195,8 @@ public final class MarketGuardCommand {
     }
 
     private static int setAbsoluteThreshold(CommandContext<FabricClientCommandSource> context, long value) {
-        long previousThreshold = MarketGuardConfig.getAbsoluteThreshold();
         MarketGuardConfig.setAbsoluteThreshold(value);
-        if (!MarketGuardConfig.save()) {
-            MarketGuardConfig.setAbsoluteThreshold(previousThreshold);
-            context.getSource().sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
+        MarketGuardConfig.save();
 
         context.getSource().sendFeedback(message(Component.literal(
                 "Absolute threshold set to " + formatPrice(value) + " coins."
@@ -255,17 +221,12 @@ public final class MarketGuardCommand {
     }
 
     private static int setPlayerHudPreset(FabricClientCommandSource source, String preset) {
-        String previousPreset = MarketGuardConfig.getPlayerHudPreset();
         try {
             MarketGuardConfig.setPlayerHudPreset(preset);
         } catch (IllegalArgumentException exception) {
             return 0;
         }
-        if (!MarketGuardConfig.save()) {
-            MarketGuardConfig.setPlayerHudPreset(previousPreset);
-            source.sendFeedback(message(Component.literal("Failed to save player HUD preset.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
+        MarketGuardConfig.save();
         PlayerHud.setPreset(preset);
         source.sendFeedback(message(Component.literal("Player HUD preset set to " + preset + ".").withStyle(ChatFormatting.GREEN)));
         return 1;
@@ -293,11 +254,7 @@ public final class MarketGuardCommand {
 
     private static int toggleProfitTrackerHud(FabricClientCommandSource source) {
         boolean nextEnabled = !ProfitTrackerHud.isDisplayEnabled();
-        if (!ProfitTrackerHud.setDisplayEnabled(nextEnabled)) {
-            source.sendFeedback(message(Component.literal("Failed to save marketguard/config.json.").withStyle(ChatFormatting.RED)));
-            return 0;
-        }
-
+        ProfitTrackerHud.setDisplayEnabled(nextEnabled);
         source.sendFeedback(message(Component.literal(
                 "Profit tracker display " + (nextEnabled ? "enabled." : "hidden.")
         ).withStyle(nextEnabled ? ChatFormatting.GREEN : ChatFormatting.GRAY)));

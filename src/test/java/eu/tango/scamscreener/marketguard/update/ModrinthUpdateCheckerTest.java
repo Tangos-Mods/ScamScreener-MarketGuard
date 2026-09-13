@@ -66,6 +66,64 @@ class ModrinthUpdateCheckerTest {
     }
 
     @Test
+    void ignoresOlderReleaseWhenRunningNewerBeta() {
+        String responseBody = """
+                [
+                  {
+                    "version_number": "1.4.2",
+                    "version_type": "release",
+                    "date_published": "2026-04-01T10:15:30Z",
+                    "status": "listed",
+                    "changelog": "Old release"
+                  }
+                ]
+                """;
+
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.5.0-beta.3");
+
+        assertNull(updateInfo);
+    }
+
+    @Test
+    void ignoresOlderReleaseWhenRunningNewerRelease() {
+        String responseBody = """
+                [
+                  {
+                    "version_number": "1.4.2+26.1.2",
+                    "version_type": "release",
+                    "date_published": "2026-04-01T10:15:30Z",
+                    "status": "listed",
+                    "changelog": "Old release"
+                  }
+                ]
+                """;
+
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.5.0+26.1.2");
+
+        assertNull(updateInfo);
+    }
+
+    @Test
+    void offersReleaseWhenRunningItsBeta() {
+        String responseBody = """
+                [
+                  {
+                    "version_number": "1.5.0",
+                    "version_type": "release",
+                    "date_published": "2026-04-01T10:15:30Z",
+                    "status": "listed",
+                    "changelog": "Final release"
+                  }
+                ]
+                """;
+
+        ModrinthUpdateChecker.UpdateInfo updateInfo = ModrinthUpdateChecker.parseLatestUpdate(responseBody, "1.5.0-beta.3");
+
+        assertNotNull(updateInfo);
+        assertEquals("1.5.0", updateInfo.latestVersion());
+    }
+
+    @Test
     void picksNewestListedRelease() {
         String responseBody = """
                 [
