@@ -1,18 +1,34 @@
 ## 1.5.0
 
-First stable release of the 1.5.0 line; see the beta sections below for everything that changed since 1.4.0.
+First stable release of the 1.5.0 line; the beta sections below list everything that changed since 1.4.0. Player-facing notes live in `MODRINTH.md`.
 
 ## Added
 
 - Add an `Update notifications` setting under `General` that controls the Modrinth update message on join.
-- Expose a `marketguard-api` Fabric entrypoint. `MarketGuardApi` is now an interface implemented by `MarketGuardApiEntrypoint`, so other mods can discover it with `FabricLoader.getEntrypoints` and share MarketGuard's Lowest BIN, Bazaar, and Player API requests instead of sending their own.
+- Expose a `marketguard-api` Fabric entrypoint. `MarketGuardApi` is now an interface implemented by `MarketGuardApiEntrypoint`, so other mods can discover it with `FabricLoader.getEntrypoints` and share MarketGuard's Lowest BIN, Bazaar and Player API requests instead of sending their own.
 - Add `MarketGuardSettingsApi` so companion mods such as PackCore can read and toggle update notifications during modpack setup.
+
+## Changed
+
+- Publish as a stable release instead of a beta.
+- Replace the static `MarketGuardApi.lookupCached...`/`request...` methods with the entrypoint instance methods of the same name.
+- Rewrite the Auction Price HUD lines: `Market price: ~X` (yellow with `(few recent sales)` for a low-quality reference), one `advice` verdict line driven by the configured over-/underbidding thresholds (`Roughly ...` and never red for low-quality references; disabled thresholds fall back to the defaults), the `difference` row hidden by default (`!difference`; configs still holding a layout shipped by the 1.5.0 betas are migrated once), price-trend and resale warnings only when `MarketRiskEvaluator` reports high risk.
+- Rewrite the Player HUD lines and presets: `trade` = name, `Never seen before` / `Seen once` / `Seen N times`, blacklist status (`ON YOUR BLACKLIST - be careful` / `Not on your blacklist`, only while ScamScreener is installed; `profile`/`all` show `ScamScreener not installed` otherwise) + status line only when the player or their SkyBlock profile cannot be resolved (`ok`/`partial` produce no line); `compact` adds `wealth` and `profile_value`; `partial` no longer produces a line; rows `finance_status`, `finance_history` and `unavailable` were removed (dropped from existing configs by `normalizeRows`); `data` shows `Updated HH:mm` or `Data may be outdated`.
+- Remove the Minion production forecast (`Observation`/`Forecast`, rows `forecast`/`forecast_status`, the `marketguard.hud.minion.forecast.*` keys, `BazaarProfit.valueDelta`); the Minion HUD shows `Held coins: X` and `Storage sells for: X`, the Forge HUD `Forge items sell for: X` (`+` when stacks are unpriced), plus the unpriced-stack count (hidden while no price is known yet).
+- Rename the HUD editor row labels to plain terms in both languages and add the missing `marketguard.hud.row.volatility`/`liquidity` labels (the editor showed the raw keys); editor previews use the same number format as the real lines.
+- `PlayerHud` reads `MarketGuardConfig.playerHudPreset` directly; the mirrored `PlayerHud.Preset` enum, `setPreset` and the `writeChanges` hook are gone, so `/mg reload` applies a changed preset immediately.
+- Default HUD screen and row lists live once as `MarketGuardConfig.DEFAULT_*` constants; `HudCustomization` and `normalizeValues` use them.
+- `MarketGuardConfig.save()` and `ProfitTrackerHud.setDisplayEnabled()` are `void`; MidnightLib never reports write failures, so the unreachable rollback branches were removed.
+- Add `HudScreenGroup.key()` for the config key of a screen group.
+- `VisibleProfileValue.estimate(knownFinance, items, lookup)` replaces the always-null `purse` parameter and the unused balance counters.
+- Command feedback names `scamscreener_marketguard/config.json`; `formatPrice` takes a `long`.
 
 ## Fixed
 
 - Price level-100 pets against their own `TYPE;TIER+100` reference and use the API's 0-based pet tiers (`COMMON` was mapped to the `UNCOMMON` key, `UNCOMMON` had no key at all).
 - Stop multiplying Bazaar instant buy/sell chat totals by the quantity again in the Profit Tracker.
 - Keep a partially claimed Bazaar buy order pending until it is fully claimed, and drop a cancelled unfilled order instead of letting it suppress the cost of the next identical order.
+- Write `profit_tracker.json` to a temp file and move it atomically, so a crash mid-save no longer wipes the all-time profits.
 - Use the non-notifying Lowest BIN lookup in the Trade Guard and in `MarketGuardApi.lookupCachedLowestBin`, so unrelated auctioneers no longer trigger blacklist chat notices.
 - Send Player API requests through `HttpClient` (hostname verification, chunked decoding) instead of a hand-rolled TLS socket.
 - Keep the stale warning in the Player HUD `data` row (`Data may be outdated`) and surface failed finance requests as `Finance data unavailable` instead of claiming finance-based values.
@@ -20,37 +36,22 @@ First stable release of the 1.5.0 line; see the beta sections below for everythi
 - Use `Locale.ROOT` for HUD screen keys so HUDs stay visible on Turkish/Azeri system locales.
 - Keep Player HUD rows of other presets when reordering rows in the editor.
 - Preserve an empty HUD screen list (HUD disabled everywhere) across restarts instead of restoring the defaults.
-- Write `profit_tracker.json` to a temp file and move it atomically, so a crash mid-save no longer wipes the all-time profits.
 
 ## Performance
 
-- Scrape container slots for the Trade Guard, Minion, Forge, and Auction Price HUDs once per client tick (`AbstractContainerScreen.tick`) instead of once per rendered frame, and skip the BIN item-slot work while the slot's stack instance is unchanged.
-- Resolve Bazaar/Lowest BIN item ids by display name through a per-snapshot name index instead of scanning every product with a regex on each lookup.
+- Scrape container slots for the Trade Guard, Minion, Forge and Auction Price HUDs once per client tick (`AbstractContainerScreen.tick`) instead of once per rendered frame, and skip the BIN item-slot work while the slot's stack instance is unchanged.
+- Resolve Bazaar/Lowest BIN item ids by display name through a per-snapshot name index instead of scanning every product with a regex on each lookup; `LowestBinData.lookupPriceData` resolves the product once per lookup instead of four times.
 - Record lobby encounters off the render thread and skip the SQLite round-trip when the /locraw response reports the same lobby with no new players (previously every 10 s response opened a connection and ran one INSERT per tab-list entry on the render thread).
 - Record Bazaar profit as plain cash flow; the sell-side FIFO lot matching never changed the number and is gone, and buys no longer accumulate `TrackedBazaarPosition` entries.
-- Drop tracked auction positions, Bazaar positions, and pending auction listings older than 14 days on load and save so the store no longer grows without bound.
-
-## Changed
-
-- Rewrite the Auction Price HUD lines: `Market price: ~X` (yellow with `(few recent sales)` for a low-quality reference), one `advice` verdict line driven by the configured over-/underbidding thresholds (`Roughly ...` and never red for low-quality references), the `difference` row hidden by default (`!difference`; configs still holding the old shipped layout are migrated once), price-trend and resale warnings only when `MarketRiskEvaluator` reports high risk.
-- Rewrite the Player HUD lines and presets: `trade` = name, seen count, blacklist status (+ status line only when the player cannot be resolved); `compact` adds `wealth` and `profile_value`; `partial` no longer produces a line; rows `finance_status`, `finance_history` and `unavailable` were removed (dropped from existing configs by `normalizeRows`); `data` shows `Updated HH:mm` or `Data may be outdated`.
-- Remove the Minion production forecast (`Observation`/`Forecast`, rows `forecast`/`forecast_status`, the `marketguard.hud.minion.forecast.*` keys, `BazaarProfit.valueDelta`); the HUD shows `Held coins`, `Storage sells for` (`+` when stacks are unpriced) and the unpriced-stack count. Forge HUD wording aligned.
-- Rename the HUD editor row labels to plain terms in both languages and drop the unused `marketguard.hud.row.title` and `marketguard.hud.scamscreener.installed` keys.
-- Publish as a stable release instead of a beta.
-- Replace the static `MarketGuardApi.lookupCached...`/`request...` methods with the entrypoint instance methods of the same name.
-- `MarketGuardConfig.save()` and `ProfitTrackerHud.setDisplayEnabled()` are `void`; MidnightLib never reports write failures, so the unreachable rollback branches were removed.
-- Add `HudScreenGroup.key()` for the config key of a screen group.
-- `PlayerHud` reads `MarketGuardConfig.playerHudPreset` directly; the mirrored `PlayerHud.Preset` enum, `setPreset` and the `writeChanges` hook are gone, so `/mg reload` applies a changed preset immediately.
-- Finance data flagged `stale` by the server is displayed as such but no longer re-requested before the cache TTL expires.
+- Drop tracked auction positions, Bazaar positions and pending auction listings older than 14 days on load and save so the store no longer grows without bound.
 - The Profit Tracker widget skips the scoreboard profile lookup while the HUD is disabled, outside SkyBlock or without a player.
-- Default HUD screen and row lists live once as `MarketGuardConfig.DEFAULT_*` constants; `HudCustomization` and `normalizeValues` use them.
-- Command feedback names `scamscreener_marketguard/config.json`; `formatPrice` takes a `long`.
-- `VisibleProfileValue.estimate(knownFinance, items, lookup)` replaces the always-null `purse` parameter and the unused balance counters.
+- Finance data flagged `stale` by the server is displayed as such but no longer re-requested before the cache TTL expires.
 
 ## Removed
 
 - The synchronous snapshot fetch path (`SnapshotCache.getSnapshot`, `SyncFetcher`, `LowestBinData.getLowestBin`, `BazaarData.getProduct`) and the two `live-api` tests that were its only users.
-- Dead code: `PlayerFinanceData` fields never read (`donatedIds`, `specialIds`, `fetchedAt`, profile `name`/`selected`), `HudCustomization.toggleRow`/`moveRow`/`moveRowTo`/`visibilityLabel`, `TradeGuardHud.Offer.empty`, `ProfitTracker.confirmBazaarFill` and the no-arg profit getters, `ProfitTrackerStore` path-less overloads, `MarketGuard.id`, the `ModrinthUpdateChecker` copy of `currentVersion`, `AuctionSlots.CREATE_BIN_CONFIRM`, `AuctionInventory.MAIN_COOP`, the `exceedsAbsoluteThreshold` wrappers, the mixin's `BYPASS_TITLE`/`AtomicInteger` bypass bookkeeping and `shouldTriggerBlacklistCheckOnOpen`, unused Stonecutter swaps/constants, duplicated `processResources` inputs, and the unused lang keys `marketguard.hud.rows`, `marketguard.hud.rows.drag`, `marketguard.hud.visible`, `marketguard.hud.hidden`, `marketguard.midnightconfig.playerHudPreset(.tooltip)`.
+- Dead code: `PlayerFinanceData` fields never read (`donatedIds`, `specialIds`, `fetchedAt`, profile `name`/`selected`), `HudCustomization.toggleRow`/`moveRow`/`moveRowTo`/`visibilityLabel`, `TradeGuardHud.Offer.empty`, `ProfitTracker.confirmBazaarFill` and the no-arg profit getters, `ProfitTrackerStore` path-less overloads, `MarketGuard.id`, the `ModrinthUpdateChecker` copy of `currentVersion`, `AuctionSlots.CREATE_BIN_CONFIRM` and the unused `AuctionSlots.ITEM_PRICE` name pattern, `AuctionInventory.MAIN_COOP`, the `exceedsAbsoluteThreshold` wrappers, the mixin's `BYPASS_TITLE`/`AtomicInteger` bypass bookkeeping and `shouldTriggerBlacklistCheckOnOpen`, unused Stonecutter swaps/constants and duplicated `processResources` inputs.
+- Lang keys left without users (after the HUD rewrite): `marketguard.hud.row.title`, `marketguard.hud.scamscreener.installed`, `marketguard.hud.rows`, `marketguard.hud.rows.drag`, `marketguard.hud.visible`, `marketguard.hud.hidden`, `marketguard.midnightconfig.playerHudPreset` (+ `.tooltip`).
 
 ## 1.5.0-beta.3
 
