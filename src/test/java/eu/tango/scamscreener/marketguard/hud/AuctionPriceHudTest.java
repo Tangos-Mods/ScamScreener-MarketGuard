@@ -41,7 +41,7 @@ class AuctionPriceHudTest {
 
     @Test
     void callsAnAuctionBelowTheUnderbiddingThresholdAGoodDeal() {
-        HudContent content = AuctionPriceHud.content(view(750_000.0, 1_000_000.0, 900_000.0, 1_000_000.0));
+        HudContent content = AuctionPriceHud.content(view(750_000.0, 700_000.0, 1_000_000.0, 1_000_000.0));
 
         assertEquals(color(ChatFormatting.GREEN), color(line(content, "Good deal: 25% below market")));
     }
@@ -67,8 +67,8 @@ class AuctionPriceHudTest {
 
         assertTrue(lines(AuctionPriceHud.content(view(1_250_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("25% above market"));
         assertTrue(lines(AuctionPriceHud.content(view(1_500_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("50% above market - overpriced"));
-        assertTrue(lines(AuctionPriceHud.content(view(750_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("Fair price"));
-        assertTrue(lines(AuctionPriceHud.content(view(600_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("Good deal: 40% below market"));
+        assertTrue(lines(AuctionPriceHud.content(view(750_000.0, 740_000.0, 1_000_000.0, 1_000_000.0))).contains("Fair price"));
+        assertTrue(lines(AuctionPriceHud.content(view(600_000.0, 600_000.0, 1_000_000.0, 1_000_000.0))).contains("Cheapest BIN right now, 40% below market"));
     }
 
     @Test
@@ -78,25 +78,45 @@ class AuctionPriceHudTest {
 
         assertEquals(color(ChatFormatting.YELLOW),
                 color(line(AuctionPriceHud.content(view(1_120_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0)), "12% above market")));
-        assertTrue(lines(AuctionPriceHud.content(view(1_000_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("Fair price"));
+        assertTrue(lines(AuctionPriceHud.content(view(1_000_000.0, 990_000.0, 1_000_000.0, 1_000_000.0))).contains("Fair price"));
         assertTrue(lines(AuctionPriceHud.content(view(1_250_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("25% above market - overpriced"));
 
         MarketGuardConfig.setUnderbiddingThreshold(0);
 
-        assertTrue(lines(AuctionPriceHud.content(view(400_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("Good deal: 60% below market"));
-        assertTrue(lines(AuctionPriceHud.content(view(900_000.0, 1_000_000.0, 1_000_000.0, 1_000_000.0))).contains("Fair price"));
+        assertTrue(lines(AuctionPriceHud.content(view(400_000.0, 400_000.0, 1_000_000.0, 1_000_000.0))).contains("Cheapest BIN right now, 60% below market"));
+        assertTrue(lines(AuctionPriceHud.content(view(900_000.0, 890_000.0, 1_000_000.0, 1_000_000.0))).contains("Fair price"));
     }
 
     @Test
     void softensTheVerdictWhenTheMarketPriceIsBasedOnFewSales() {
         HudContent above = AuctionPriceHud.content(view(1_250_000.0, 1_000_000.0, null, null));
-        HudContent below = AuctionPriceHud.content(view(750_000.0, 1_000_000.0, null, null));
-        HudContent near = AuctionPriceHud.content(view(1_000_000.0, 1_000_000.0, null, null));
+        HudContent below = AuctionPriceHud.content(view(750_000.0, 700_000.0, 1_200_000.0, null));
+        HudContent near = AuctionPriceHud.content(view(1_010_000.0, 1_000_000.0, null, null));
 
         assertEquals(color(ChatFormatting.YELLOW), color(line(above, "Market price: ~1,000,000 coins (few recent sales)")));
         assertEquals(color(ChatFormatting.YELLOW), color(line(above, "Roughly 25% above market")));
-        assertEquals(color(ChatFormatting.YELLOW), color(line(below, "Roughly 25% below market")));
+        assertEquals(color(ChatFormatting.YELLOW), color(line(below, "Roughly 21% below market")));
         assertTrue(lines(near).contains("Fair price"));
+    }
+
+    @Test
+    void callsTheCheapestListingGreenEvenWhenTheMarketPriceIsUncertain() {
+        HudContent isLowestBin = AuctionPriceHud.content(view(149_000.0, 149_000.0, 230_000.0, null));
+        HudContent belowLowestBin = AuctionPriceHud.content(view(140_000.0, 149_000.0, 230_000.0, null));
+        HudContent atMarket = AuctionPriceHud.content(view(1_000_000.0, 1_000_000.0, 1_000_000.0, 1_020_000.0));
+        HudContent notCheapest = AuctionPriceHud.content(view(150_000.0, 149_000.0, 230_000.0, null));
+
+        assertEquals(color(ChatFormatting.GREEN), color(line(isLowestBin, "Cheapest BIN right now, 21% below market")));
+        assertEquals(color(ChatFormatting.GREEN), color(line(belowLowestBin, "Cheapest BIN right now, 26% below market")));
+        assertEquals(color(ChatFormatting.GREEN), color(line(atMarket, "Cheapest BIN right now")));
+        assertEquals(color(ChatFormatting.YELLOW), color(line(notCheapest, "Roughly 21% below market")));
+    }
+
+    @Test
+    void cheapestListingStaysRedWhenTheWholeMarketIsOverpriced() {
+        HudContent content = AuctionPriceHud.content(view(1_250_000.0, 1_250_000.0, 1_000_000.0, 1_000_000.0));
+
+        assertEquals(color(ChatFormatting.RED), color(line(content, "Cheapest BIN, but 25% above market - overpriced")));
     }
 
     @Test

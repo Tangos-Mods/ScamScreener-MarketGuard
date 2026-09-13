@@ -8,7 +8,7 @@ MarketGuard currently steps in during two common risk situations:
 
 - When creating a `Create BIN Auction`, the mod checks whether your listed price is significantly below the `Lowest BIN`.
 - When opening a `Bin Auction View`, the mod checks whether the purchase price is significantly above the `Lowest BIN`.
-- In a `Bin Auction View`, the movable `Auction Price` HUD card shows the offered price, the market price, and a one-line verdict (`Fair price`, `Good deal: 25% below market`, `12% above market`, `18% above market - overpriced`) that follows your protection thresholds.
+- In a `Bin Auction View`, the movable `Auction Price` HUD card shows the offered price, the market price, and a one-line verdict (`Cheapest BIN right now`, `Fair price`, `Good deal: 25% below market`, `12% above market`, `25% above market - overpriced`) that follows your protection thresholds.
 
 If a price falls outside your configured tolerance, the click is blocked and you receive a clear chat warning with the item name and percentage difference. That gives you an extra safety stop before an expensive mistake goes through.
 

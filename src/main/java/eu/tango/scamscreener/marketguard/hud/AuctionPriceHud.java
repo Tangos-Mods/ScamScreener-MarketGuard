@@ -97,7 +97,8 @@ public final class AuctionPriceHud {
 
             double difference = current.auctionPrice() - reference.value();
             double differencePercentage = difference / reference.value();
-            Component verdict = verdict(differencePercentage, reliable);
+            boolean cheapest = lowestBin.value() != null && current.auctionPrice() <= lowestBin.value();
+            Component verdict = verdict(differencePercentage, reliable, cheapest);
             lines.put("advice", verdict);
             lines.put("difference", Component.literal(signedCoins(difference) + " (" + signedPercentage(differencePercentage) + ") vs. market")
                     .withStyle(verdict.getStyle()));
@@ -110,12 +111,20 @@ public final class AuctionPriceHud {
         return build(lines);
     }
 
-    private static Component verdict(double differencePercentage, boolean reliable) {
+    private static Component verdict(double differencePercentage, boolean reliable, boolean cheapest) {
         int overThreshold = AuctionOverbidding.isEnabled() ? AuctionOverbidding.getThreshold() : AuctionOverbidding.DEFAULT_THRESHOLD;
         int underThreshold = AuctionUnderbidding.isEnabled() ? AuctionUnderbidding.getThreshold() : AuctionUnderbidding.DEFAULT_THRESHOLD;
         double over = overThreshold / 100.0 - 1.0;
         double under = 1.0 - underThreshold / 100.0;
         String percent = percentage(Math.abs(differencePercentage));
+        if (cheapest) {
+            if (reliable && differencePercentage >= over) {
+                return Component.literal("Cheapest BIN, but " + percent + " above market - overpriced").withStyle(ChatFormatting.RED);
+            }
+            String market = Math.abs(differencePercentage) < FAIR_ABOVE_MARKET ? ""
+                    : ", " + percent + (differencePercentage < 0.0 ? " below market" : " above market");
+            return Component.literal("Cheapest BIN right now" + market).withStyle(ChatFormatting.GREEN);
+        }
         if (differencePercentage <= -under) {
             return reliable
                     ? Component.literal("Good deal: " + percent + " below market").withStyle(ChatFormatting.GREEN)
