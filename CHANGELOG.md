@@ -36,6 +36,7 @@ First stable release of the 1.5.0 line; the beta sections below list everything 
 - Use `Locale.ROOT` for HUD screen keys so HUDs stay visible on Turkish/Azeri system locales.
 - Keep Player HUD rows of other presets when reordering rows in the editor.
 - Preserve an empty HUD screen list (HUD disabled everywhere) across restarts instead of restoring the defaults.
+- Recognise the Player HUD target more robustly: `Seller: [MVP+] Name` lore lines with a rank tag, `Name' Profile` titles, surrounding whitespace, and trade titles whose partner name Hypixel cut off (completed from the tab list when unambiguous). Unrecognised `Seller:` lines and `You ...` titles are logged with `/mg debug`.
 
 ## Performance
 

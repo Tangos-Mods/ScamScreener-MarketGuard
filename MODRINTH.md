@@ -29,6 +29,7 @@ Press `F8` to place them; each HUD can be limited to specific screens in `Market
 - A crash while saving no longer resets your all-time Profit Tracker totals.
 - The Trade Guard no longer shows blacklist notices about unrelated auction sellers.
 - The Player HUD says `Data may be outdated` and `Finance data unavailable` instead of claiming finance-based values it does not have, and no longer fails to load for some players.
+- The Player HUD now also opens for sellers with a rank tag in the BIN view, for profile titles like `Chris' Profile`, and for trade partners whose name is cut off in the trade window title.
 - Update notifications only appear when the listed release is newer than the installed version.
 - HUDs stay visible on Turkish/Azeri system locales, reordering Player HUD rows for one preset no longer drops the rows of the other presets, and a HUD disabled on every screen stays disabled after a restart.
 - `/mg reload` applies a changed Player HUD preset immediately, and command feedback names the real config file (`config/scamscreener_marketguard/config.json`).

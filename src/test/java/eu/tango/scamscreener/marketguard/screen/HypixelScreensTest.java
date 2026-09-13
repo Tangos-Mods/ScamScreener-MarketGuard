@@ -40,6 +40,27 @@ class HypixelScreensTest {
     }
 
     @Test
+    void readsSellerWithRankTagAndDigits() {
+        assertEquals("Tango_123", HypixelScreens.auctionSeller(List.of(Component.literal("Seller: [MVP+] Tango_123"))));
+        assertEquals("xX_Sam_Xx", HypixelScreens.auctionSeller(List.of(Component.literal("Seller: [MVP++] xX_Sam_Xx"))));
+        assertEquals("Creator1", HypixelScreens.auctionSeller(List.of(Component.literal("Seller: [YOUTUBE] Creator1"))));
+    }
+
+    @Test
+    void readsProfileOwnerFromBothPossessiveForms() {
+        assertEquals("Pankraz01", HypixelScreens.profilePlayer("Pankraz01's Profile"));
+        assertEquals("Chris", HypixelScreens.profilePlayer("Chris' Profile"));
+        assertEquals("Sam_1234", HypixelScreens.profilePlayer("  Sam_1234's Profile "));
+        assertNull(HypixelScreens.profilePlayer("Profile"));
+    }
+
+    @Test
+    void tradeTitleToleratesSurroundingWhitespaceAndDigits() {
+        assertEquals("Tango_123", HypixelScreens.tradePartner("You                  Tango_123 "));
+        assertEquals("Tango_123", HypixelScreens.tradePartner(" You Tango_123"));
+    }
+
+    @Test
     void ignoresNonPlayerSellerValues() {
         assertNull(HypixelScreens.auctionSeller(List.of(Component.literal("Seller: Auction House"))));
     }
