@@ -4,7 +4,7 @@ First stable release of the 1.5.0 line; the beta sections below list everything 
 
 ## Added
 
-- Add support for Minecraft 26.3.x (built against 26.3-rc-2 through `deps.minecraft` until 26.3 is released).
+- Add support for Minecraft 26.3.x.
 - Add an `Update notifications` setting under `General` that controls the Modrinth update message on join.
 - Expose a `marketguard-api` Fabric entrypoint. `MarketGuardApi` is now an interface implemented by `MarketGuardApiEntrypoint`, so other mods can discover it with `FabricLoader.getEntrypoints` and share MarketGuard's Lowest BIN, Bazaar and Player API requests instead of sending their own.
 - Add `MarketGuardSettingsApi` so companion mods such as PackCore can read and toggle update notifications during modpack setup.
