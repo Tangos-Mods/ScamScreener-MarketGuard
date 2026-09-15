@@ -140,7 +140,7 @@ MarketGuard only blocks when both conditions are met:
 2. Run `./gradlew build` (Linux/macOS) or `gradlew.bat build` (Windows).
 3. Use `buildAndCollect` to collect remapped artifacts under `build/libs/<mod.version>/`.
 
-A target can be built against a Minecraft pre-release by setting `deps.minecraft` in its `versions/<version>/gradle.properties` (currently `26.3` -> `26.3-rc-2`); such a target is skipped by the publish tasks until the property is removed.
+A target can be built against a Minecraft pre-release by setting `deps.minecraft` in its `versions/<version>/gradle.properties`; such a target is skipped by the publish tasks until the property is removed.
 
 ## Project Notes
 
