@@ -1,3 +1,9 @@
+## Unreleased
+
+## Changed
+
+- Build: Tango's HudLib now comes from Modrinth Maven (`maven.modrinth:dynamic-hudlib:1.2.0+<mc>`) for 26.1.2 and 26.2 instead of the sibling `../TangosHudLib` build; it is still embedded via `include`. 26.3 keeps the local build until HudLib 1.2.0+26.3 is published.
+
 ## 1.5.0
 
 First stable release of the 1.5.0 line; the beta sections below list everything that changed since 1.4.0. Player-facing notes live in `MODRINTH.md`.

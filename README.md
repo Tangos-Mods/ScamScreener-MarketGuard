@@ -138,7 +138,7 @@ MarketGuard only blocks when both conditions are met:
 
 ## Build
 
-1. Build Tango's HudLib for every Stonecutter target first (`./gradlew build` in the neighbouring `../TangosHudLib` checkout); MarketGuard's Gradle configuration fails with `Missing local Tango's HudLib build` otherwise.
+1. Build Tango's HudLib for 26.3 first (`./gradlew :26.3:build` in the neighbouring `../TangosHudLib` checkout). The other targets get HudLib from Modrinth Maven; 26.3 uses the local build until HudLib 1.2.0+26.3 is published there, and Gradle cannot configure the project without it.
 2. Run `./gradlew build` (Linux/macOS) or `gradlew.bat build` (Windows).
 3. Use `buildAndCollect` to collect remapped artifacts under `build/libs/<mod.version>/`.
 
