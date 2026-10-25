@@ -1,3 +1,15 @@
+## 1.5.1
+
+Dependency maintenance release. Player-facing notes live in `MODRINTH.md`.
+
+## Changed
+
+- Update Lombok to 1.18.48 (`deps.lombok`). 1.18.38 only declared support up to JDK 24 while the toolchain runs on JDK 25.
+- Update the bundled `org.xerial:sqlite-jdbc` from 3.46.1.0 to 3.53.4.0.
+- Update the bundled MidnightLib from 1.9.3 to 1.10.0 for all three targets.
+- Raise `deps.fabric_loader` to 0.20.1. The property feeds `"fabricloader": ">=${loader_version}"` in `fabric.mod.json`, so this also raises the loader floor for players.
+- Update Fabric API to 0.155.3+26.1.2, 0.161.0+26.2 and 0.165.0+26.3.
+
 ## 1.5.0
 
 First stable release of the 1.5.0 line; the beta sections below list everything that changed since 1.4.0. Player-facing notes live in `MODRINTH.md`.

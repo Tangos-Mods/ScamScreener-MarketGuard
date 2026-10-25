@@ -93,9 +93,9 @@ dependencies {
     val scamscreenerVersion = "2.2.0+26.1"
     val localHudLibVersion = "1.2.0+${sc.current.version}"
     val midnightLibVersion = when (sc.current.version) {
-        "26.1.2" -> "1.9.3+26.1-fabric"
-        "26.2" -> "1.9.3+26.2-fabric"
-        "26.3" -> "1.9.3+26.3-fabric"
+        "26.1.2" -> "1.10.0+26.1-fabric"
+        "26.2" -> "1.10.0+26.2-fabric"
+        "26.3" -> "1.10.0+26.3-fabric"
         else -> throw GradleException("Unsupported MidnightLib target: ${sc.current.version}")
     }
     // TODO: Replace this temporary local Jar-in-Jar source with the HudLib Modrinth Maven dependency.
@@ -122,8 +122,8 @@ dependencies {
     include("local.tango:tangoshudlib:$localHudLibVersion")
     implementation("maven.modrinth:midnightlib:$midnightLibVersion")
     include("maven.modrinth:midnightlib:$midnightLibVersion")
-    implementation("org.xerial:sqlite-jdbc:3.46.1.0")
-    include("org.xerial:sqlite-jdbc:3.46.1.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.4.0")
+    include("org.xerial:sqlite-jdbc:3.53.4.0")
 }
 
 loom {
